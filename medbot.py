@@ -1,17 +1,27 @@
 from user import User
-import cv2
-import numpy as np
 from pyzbar.pyzbar import decode
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Cipher import AES
 from base64 import b64encode,b64decode
+from escpos.printer import Usb
+import cv2
+import numpy as np
 import max30102
 import hrcalc
+import speech_recognition
+import pyttsx3
 
 class Medbot:
     def __init__(self, database):
         self.database = database
         self.__password = bytes('MedbotPRBPM' + '\0\0\0\0\0', 'utf-8')
+        self.current_user = None,
+        self.qrcode_scanner = cv2.VideoCapture(0)
+        self.oximeter = max30102.MAX30102()
+        self.recognizer = speech_recognition.Recognizer()
+        self.microphone = speech_recognition.Microphone()
+        self.speaker = pyttsx3.init()
+        self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
         self.latest_reading = {
             'pulse_rate': None,
             'blood_pressure': None,
@@ -53,9 +63,8 @@ class Medbot:
             raise Exception('QRCode is not a valid one')
 
     def __scan_qrcode(self):
-        video = cv2.VideoCapture(0)
         while True:
-            ret, frame = video.read()
+            ret, frame = self.qrcode_scanner.read()
             encrypted_data = self.__decode(frame)
             cv2.imshow('Image', frame)
             cv2.waitKey(1)
@@ -63,6 +72,7 @@ class Medbot:
                 decrypted_data = self.__decrypt(encrypted_data)
                 break
         cv2.destroyAllWindows()
+        del video
         return decrypted_data
                 
     def login(self):
@@ -72,17 +82,16 @@ class Medbot:
         success = self.database.verify(user)
         if(success):
             user.authenticated = True
-            return user
+            self.current_user = user
         else:
             raise Exception('Invalid Credentials')
 
     def start_oximeter(self):
-        oximeter = max30102.MAX30102()
         pulse_rate_samples = []
         blood_saturation_samples = []
         count = 0
         while(True):
-            red, ir = oximeter.read_sequential()
+            red, ir = self.oximeter.read_sequential()
             pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = hrcalc.calc_hr_and_spo2(ir[:100], red[:100])
             if(pulse_rate_valid and blood_saturation_valid and count <= 10):
                 pulse_rate_samples.append(pulse_rate)
@@ -99,3 +108,43 @@ class Medbot:
     # start blood presssure monitor
 
     # save latest reading to database
+
+    def print_results(self, content, **settings):
+        self.printer.set(settings)
+        success = False
+        while(not success):
+            if(self.printer.is_online()):
+                if(self.printer.paper_status() != 0):
+                    try:
+                        self.printer.text(content)
+                        self.printer.cut()
+                        success = True
+                    except:
+                        break
+                else:
+                    raise Exception('No paper found')
+            else:
+                pass
+        return success
+
+    def get_voice_input(self, *accepted_answer):
+        while(True):
+            try:
+                with self.microphone:
+                    self.recognizer.adjust_for_ambient_noise(self.microphone, duration = 1)
+                    audio = self.recognizer.listen(self.microphone)
+                    text = self.recognizer.recognize_google(audio)
+                    text = text.lower()
+                    if(len(accepted_answer) > 0):
+                        if(text in accepted_answer):
+                            break
+                    else:
+                        break
+            except self.recognizer.RequestErrorr:
+                print('Cannot process request now')
+            except self.recognizer.ValueError:
+                print('Value error occured')
+    
+    def speak(self, text):
+        self.speaker.say(text)
+        self.speaker.runAndWait()
