@@ -4,6 +4,7 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Cipher import AES
 from base64 import b64encode,b64decode
 from escpos.printer import Usb
+from datetime import datetime
 import cv2
 import numpy as np
 import max30102
@@ -107,7 +108,11 @@ class Medbot:
 
     # start blood presssure monitor
 
-    # save latest reading to database
+    def save_reading(self,pulse_rate, systolic, diastolic, blood_saturation):
+        blood_pressure = diastolic + ((systolic - diastolic)/3)
+        date_now = datetime.now()
+        values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
+        self.database.insert_record('readings', values)
 
     def print_results(self, content, **settings):
         self.printer.set(settings)
