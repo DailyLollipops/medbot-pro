@@ -182,6 +182,15 @@ class Medbot:
         self.speaker.say(text)
         self.speaker.runAndWait()
 
+    def set_speaker_properties(self, rate=100, volume=1.0, voice='male'):
+        self.speaker.setProperty('rate', rate)
+        self.speaker.setProperty('volume', volume)
+        voices = self.speaker.getProperty('voices')
+        if(voice == 'female'):
+            self.speaker.setProperty('voice', voices[1].id)
+        else:
+            self.speaker.setProperty('voice', voices[0].id)
+
     def start_sanitizer(self):
         command = 'Start Sanitizer'
         self.arduino.write(command.encode())
