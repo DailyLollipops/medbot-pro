@@ -181,3 +181,7 @@ class Medbot:
     def speak(self, text):
         self.speaker.say(text)
         self.speaker.runAndWait()
+
+    def start_sanitizer(self):
+        command = 'Start Sanitizer'
+        self.arduino.write(command.encode())
