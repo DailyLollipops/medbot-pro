@@ -20,7 +20,7 @@ class Medbot:
         self.qrcode_scanner = cv2.VideoCapture(0)
         self.oximeter = max30102.MAX30102()
         self.recognizer = speech_recognition.Recognizer()
-        self.microphone = speech_recognition.Microphone()
+        self.microphone = speech_recognition.Microphone(device_index = 2)
         self.speaker = pyttsx3.init()
         self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
         self.latest_reading = {
@@ -149,6 +149,7 @@ class Medbot:
                 print('Cannot process request now')
             except self.recognizer.ValueError:
                 print('Value error occured')
+        return text
     
     def speak(self, text):
         self.speaker.say(text)
