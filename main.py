@@ -1,9 +1,3 @@
-"""
-pip install mysql-connector-python
-For zbar(qrcode) https://pyseek.blogspot.com/2021/08/create-your-own-qr-code-scanner-using-python.html
-pip install pycryptodome
-"""
-
 from database import Database
 from medbot import Medbot
 
