@@ -11,6 +11,7 @@ import max30102
 import hrcalc
 import speech_recognition
 import pyttsx3
+import serial
 
 class Medbot:
     def __init__(self, database):
@@ -23,6 +24,8 @@ class Medbot:
         self.microphone = speech_recognition.Microphone(device_index = 2)
         self.speaker = pyttsx3.init()
         self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
+        self.arduino = serial.Serial('/dev/ttyACM0', 9600, timeout = 1)
+        self.body_check_in_progress = False
         self.latest_reading = {
             'pulse_rate': None,
             'blood_pressure': None,
@@ -86,6 +89,30 @@ class Medbot:
             self.current_user = user
         else:
             raise Exception('Invalid Credentials')
+
+    def start_body_position_check(self):
+        command = 'Start Body Position Check'
+        self.arduino.write(command.encode())
+        self.body_check_in_progress = True
+
+    def wait_body_position_check(self):
+        if(self.body_check_in_progress):
+            while(self.body_check_in_progress):
+                if(self.arduino.inWaiting > 0):
+                    response = self.arduino.readline()
+                    if(response == 'Body Check Complete'):
+                        self.body_check_in_progress == False
+                        return True
+        else:
+            raise Exception('Body check is not started')
+
+    def stop_body_position_check(self):
+        command = 'Stop Body Position Check'
+        self.arduino.write(command.encode())
+        self.body_check_in_progress = False
+    
+    def get_body_position_check_status(self):
+        return self.body_check_in_progress
 
     def start_oximeter(self):
         pulse_rate_samples = []
