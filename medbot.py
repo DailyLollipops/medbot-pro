@@ -159,7 +159,7 @@ class Medbot:
                 pass
         return success
 
-    def get_voice_input(self, *accepted_answer):
+    def get_voice_input(self, *accepted_answers):
         while(True):
             try:
                 with self.microphone:
@@ -167,8 +167,8 @@ class Medbot:
                     audio = self.recognizer.listen(self.microphone)
                     text = self.recognizer.recognize_google(audio)
                     text = text.lower()
-                    if(len(accepted_answer) > 0):
-                        if(text in accepted_answer):
+                    if(len(accepted_answers) > 0):
+                        if(text in accepted_answers):
                             break
                     else:
                         break
