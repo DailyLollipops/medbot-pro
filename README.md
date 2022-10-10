@@ -81,6 +81,7 @@ The medbot utilizes the [speech_recognition](https://pypi.org/project/SpeechReco
 voice_input = medbot.get_voice_input(*accepted_answers)
 ```
 
+<!--
 #### Using voice prompt
 The voice prompt uses the [pyttsx3](https://pypi.org/project/pyttsx3/) library to convert text to audio. To use this, simply call the `speak(text)` method, passing in the the string you wish to be converted to speech
 ```python
@@ -112,6 +113,7 @@ medbot.start_body_position_check()
 body_check_completed = wait_body_position_check()
 ```
 It is possible to stop the operation by calling `stop_body_position_check()` method. You can also get the operation status by using the `get_body_position_check_status()` which returns `True` if the operation is in progress otherwise `False` if not
+-->
 
 #### Sanitize
 The `sanitize` method tells the Arduino to commence the operation. Simply call the `sanitize()` method to do this
@@ -121,6 +123,7 @@ medbot.sanitize()
 
 ## To-do
 - [ ] Add method for measuring blood pressure
+- [ ] Add communication to Arduino for body position checking
 - [ ] Add GUI
 
 ## Components
