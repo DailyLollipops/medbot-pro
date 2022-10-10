@@ -123,7 +123,7 @@ medbot.sanitize()
 
 ## To-do
 - [ ] Add method for measuring blood pressure
-- [ ] Add communication to Arduino
+- [ ] Add communication to Arduino for body position checking
 - [ ] Add GUI
 
 ## Components
