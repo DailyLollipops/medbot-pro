@@ -103,6 +103,8 @@ class Medbot:
                     if(response == 'Body Check Complete'):
                         self.body_check_in_progress == False
                         return True
+                    else:
+                        return response
         else:
             raise Exception('Body check is not started')
 
