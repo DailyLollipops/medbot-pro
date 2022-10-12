@@ -38,3 +38,6 @@ class User:
             'authenticated': self.authenticated
         }
         return info
+
+    def is_authenticated(self):
+        return self.authenticated
