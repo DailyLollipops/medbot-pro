@@ -7,8 +7,8 @@ from escpos.printer import Usb
 from datetime import datetime
 import cv2
 import numpy as np
-import max30102
-import hrcalc
+# import max30102
+# import hrcalc
 import speech_recognition
 import pyttsx3
 import serial
@@ -18,13 +18,16 @@ class Medbot:
         self.database = database
         self.__password = bytes('MedbotPRBPM' + '\0\0\0\0\0', 'utf-8')
         self.current_user = None,
+        self.has_user = False
         self.qrcode_scanner = cv2.VideoCapture(0)
-        self.oximeter = max30102.MAX30102()
+        # self.oximeter = max30102.MAX30102()
         self.recognizer = speech_recognition.Recognizer()
         self.microphone = speech_recognition.Microphone(device_index = 2)
         self.speaker = pyttsx3.init()
-        self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
-        self.arduino = serial.Serial('/dev/ttyACM0', 9600, timeout = 1)
+        # self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
+        self.printer = None
+        # self.arduino = serial.Serial('/dev/ttyACM0', 9600, timeout = 1)
+        self.arduino = None
         self.body_check_in_progress = False
         self.latest_reading = {
             'pulse_rate': None,
@@ -76,7 +79,6 @@ class Medbot:
                 decrypted_data = self.__decrypt(encrypted_data)
                 break
         cv2.destroyAllWindows()
-        del video
         return decrypted_data
                 
     def login(self):
@@ -87,8 +89,39 @@ class Medbot:
         if(success):
             user.authenticated = True
             self.current_user = user
+            self.has_user = True
+            return user
         else:
+            del user
             raise Exception('Invalid Credentials')
+
+    # For GUI 
+    def get_qrcode_scanner_frame(self):
+        if self.qrcode_scanner.isOpened():
+            ret, frame = self.qrcode_scanner.read()
+            if ret:
+                return (ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            else:
+                return (ret, None)
+        else:
+            return (ret, None)
+
+    def login_tk(self, frame):
+        encrypted_data = self.__decode(frame)
+        decrypted_data = ''
+        if(encrypted_data != None):
+            decrypted_data = self.__decrypt(encrypted_data)
+            id, password = self.__verify_qrcode(decrypted_data)
+            user = User(id, password)
+            success = self.database.verify(user)
+            if(success):
+                user.authenticated = True
+                self.current_user = user
+                self.has_user = True
+                return True
+            else:
+                del user
+                raise Exception('Invalid Credentials')
 
     def start_body_position_check(self):
         command = 'Start Body Position Check'
@@ -116,24 +149,24 @@ class Medbot:
     def get_body_position_check_status(self):
         return self.body_check_in_progress
 
-    def start_oximeter(self):
-        pulse_rate_samples = []
-        blood_saturation_samples = []
-        count = 0
-        while(True):
-            red, ir = self.oximeter.read_sequential()
-            pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = hrcalc.calc_hr_and_spo2(ir[:100], red[:100])
-            if(pulse_rate_valid and blood_saturation_valid and count <= 10):
-                pulse_rate_samples.append(pulse_rate)
-                blood_saturation_samples.append(blood_saturation)
-                count = count + 1
-            if(count > 10):
-                break
-        average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
-        average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
-        self.latest_reading['pulse_rate'] = average_pulse_rate
-        self.latest_reading['blood_saturation'] = average_blood_saturation
-        return average_pulse_rate, average_blood_saturation
+    # def start_oximeter(self):
+    #     pulse_rate_samples = []
+    #     blood_saturation_samples = []
+    #     count = 0
+    #     while(True):
+    #         red, ir = self.oximeter.read_sequential()
+    #         pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = hrcalc.calc_hr_and_spo2(ir[:100], red[:100])
+    #         if(pulse_rate_valid and blood_saturation_valid and count <= 10):
+    #             pulse_rate_samples.append(pulse_rate)
+    #             blood_saturation_samples.append(blood_saturation)
+    #             count = count + 1
+    #         if(count > 10):
+    #             break
+    #     average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
+    #     average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
+    #     self.latest_reading['pulse_rate'] = average_pulse_rate
+    #     self.latest_reading['blood_saturation'] = average_blood_saturation
+    #     return average_pulse_rate, average_blood_saturation
 
     # start blood presssure monitor
 
@@ -196,3 +229,10 @@ class Medbot:
     def start_sanitizer(self):
         command = 'Start Sanitizer'
         self.arduino.write(command.encode())
+
+    def get_current_user(self):
+        try:
+            if(self.current_user[0] is None):
+                return None
+        except:
+            return self.current_user
