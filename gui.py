@@ -15,23 +15,27 @@ class PopupMessage:
         messagebox.showinfo(title, message, parent = messagebox_container)
 
 class MedbotLoginGui:
-    def __init__(self, window_title, medbot):
+    def __init__(self, medbot):
         self.window = tkinter.Tk()
-        self.window.title(window_title)
+        self.window.title('Login Window')
         self.window.geometry('600x400')
+        logo = ImageTk.PhotoImage(Image.open('images/logo.png'))
+        self.window.iconphoto(False, logo)
+        self.window.configure(background = 'white')
         self.medbot = medbot
+ 
+        placeholder = tkinter.Canvas(self.window, width = 280, height = 390)
+        qrcode = ImageTk.PhotoImage(Image.open('images/qrcode.png').resize((128,166)))
+        placeholder.create_text(145, 65, text = 'Med-bot: Pulse Rate\nand\nBlood Pressure Monitor',
+                                anchor = tkinter.CENTER, font = ('Lucida',14), justify = 'center')
+        placeholder.create_image(85, 130, image = qrcode, anchor = tkinter.NW)
+        placeholder.create_text(150, 355, text = 'Place your QR Code\nwithin the frame to Login',
+                                anchor = tkinter.CENTER, font = ('Lucida',14), justify = 'center')
+        placeholder.configure(background = 'white', highlightbackground = 'white' )
+        placeholder.place(x = 0, y = 0)
 
-        title_label = tkinter.Label(self.window, text = 'Med-bot: Pulse Rate\nand\nBlood Pressure Monitor',
-                                        anchor = tkinter.CENTER, font = ('Lucida',15))
-        title_label.place(x = 30, y = 50)
-
-        logo = ImageTk.PhotoImage(Image.open('logo.png')) 
-        logo_holder = tkinter.Canvas(self.window, width = 128, height = 128)
-        logo_holder.place(x = 30, y = 100)
-        logo_holder.create_image(0, 0, image = logo , anchor = tkinter.CENTER)
-
-        self.canvas = tkinter.Canvas(self.window, width = 300, height = 350)
-        self.canvas.place(x=275, y=25)
+        self.canvas = tkinter.Canvas(self.window, width = 300, height = 380)
+        self.canvas.place(x = 290, y = 10)
         self.update()
         self.window.mainloop()
 
@@ -41,10 +45,13 @@ class MedbotLoginGui:
             if ret:
                 self.photo = ImageTk.PhotoImage(image = Image.fromarray(frame))
                 self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
-                logged_in = self.medbot.login_tk(frame)
+                try:
+                    logged_in = self.medbot.login_tk(frame)
+                except:
+                    PopupMessage.show_message(self.window, 'Login Failed', 'Invalid Credentials', timeout = 1500)
                 if(logged_in):
                     PopupMessage.show_message(self.window, 'Login Successfully', 
-                                        'Welcome Back ' + self.medbot.current_user.name + ' !',
+                                        'Welcome back, ' + self.medbot.current_user.name + ' !',
                                         timeout = 2000)
                     MedbotMainWindow(self)
         self.window.after(15, self.update)
@@ -62,7 +69,7 @@ class MedbotMainWindow():
 
     def on_close(self):
         PopupMessage.show_message(self.window, 'Logout Successfully', 
-                    'See you later ' + self.root.medbot.current_user.name + ' !',
+                    'See you later, ' + self.root.medbot.current_user.name + ' !',
                     timeout = 3000)
         self.root.medbot.logout()
         self.root.window.deiconify()
@@ -70,4 +77,4 @@ class MedbotMainWindow():
 
 database = Database('sql.freedb.tech','freedb_medbot','freedb_medbot','ct9xVSS$$2g35s7')
 medbot = Medbot(database)
-MedbotLoginGui("Tkinter and OpenCV",medbot)
+MedbotLoginGui(medbot)
