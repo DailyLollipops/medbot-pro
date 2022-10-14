@@ -155,6 +155,11 @@ class Medbot:
     def get_body_position_check_status(self):
         return self.body_check_in_progress
 
+    def get_arduino_response(self):
+        if(self.arduino.inWaiting > 0):
+            response = self.arduino.readline()
+            return response
+            
     # def start_oximeter(self):
     #     pulse_rate_samples = []
     #     blood_saturation_samples = []
