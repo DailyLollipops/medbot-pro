@@ -6,3 +6,5 @@ if __name__ == "__main__":
     medbot = Medbot(database)
     user = medbot.login()
     print(user.get_info())
+    medbot.logout()
+    print(medbot.get_current_user())

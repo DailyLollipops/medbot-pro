@@ -123,6 +123,11 @@ class Medbot:
                 del user
                 raise Exception('Invalid Credentials')
 
+    def logout(self):
+        self.current_user.authenticated = False
+        self.current_user = None
+        self.has_user = False
+
     def start_body_position_check(self):
         command = 'Start Body Position Check'
         self.arduino.write(command.encode())
