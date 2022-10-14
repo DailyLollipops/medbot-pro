@@ -31,7 +31,8 @@ class Medbot:
         self.body_check_in_progress = False
         self.latest_reading = {
             'pulse_rate': None,
-            'blood_pressure': None,
+            'systolic': None,
+            'diastolic': None,
             'blood_saturation': None
         }
 
