@@ -28,7 +28,9 @@ class Medbot:
         self.printer = None
         # self.arduino = serial.Serial('/dev/ttyACM0', 9600, timeout = 1)
         self.arduino = None
+        self.body_check_started = False
         self.body_check_in_progress = False
+        self.body_check_completed = False
         self.latest_reading = {
             'pulse_rate': None,
             'systolic': None,
@@ -132,6 +134,7 @@ class Medbot:
     def start_body_position_check(self):
         command = 'Start Body Position Check'
         self.arduino.write(command.encode())
+        self.body_check_started = True
         self.body_check_in_progress = True
 
     def wait_body_position_check(self):
@@ -139,8 +142,10 @@ class Medbot:
             while(self.body_check_in_progress):
                 if(self.arduino.inWaiting > 0):
                     response = self.arduino.readline()
-                    if(response == 'Body Check Complete'):
-                        self.body_check_in_progress == False
+                    if(response == 'Body Position Check Complete'):
+                        self.body_check_started = False
+                        self.body_check_in_progress = False
+                        self.body_check_completed = True
                         return True
                     else:
                         return response
@@ -156,10 +161,11 @@ class Medbot:
         return self.body_check_in_progress
 
     def get_arduino_response(self):
+        # Possible response('Body Position Check Completed','Sanitize Completed,)
         if(self.arduino.inWaiting > 0):
             response = self.arduino.readline()
             return response
-            
+
     # def start_oximeter(self):
     #     pulse_rate_samples = []
     #     blood_saturation_samples = []
