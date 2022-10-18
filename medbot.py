@@ -293,3 +293,15 @@ class Medbot:
                 return None
         except:
             return self.current_user
+
+    def get_current_pulse_rate(self):
+        return self.latest_reading['pulse_rate']
+
+    def get_current_systolic(self):
+        return self.latest_reading['systolic']
+
+    def get_current_diastolic(self):
+        return self.latest_reading['diastolic']
+
+    def get_current_blood_saturation(self):
+        return self.latest_reading['blood_saturation']
