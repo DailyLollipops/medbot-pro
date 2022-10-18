@@ -160,11 +160,31 @@ class Medbot:
     def get_body_position_check_status(self):
         return self.body_check_in_progress
 
+    def body_release(self):
+        command = 'Body Release'
+        self.arduino.write(command.encode())
+        
     def get_arduino_response(self):
         # Possible response('Body Position Check Completed','Sanitize Completed,)
         if(self.arduino.inWaiting > 0):
             response = self.arduino.readline()
             return response
+
+    def send_command(self, command):
+        # Possible commands('Start Body Position Check','Stop Body Position Check',
+        #   'Start Sanitize', 'Body Release')
+        commands = ['Start Body Position Check', 'Stop Body Position Check', 'Start Sanitize', 'Body Release']
+        if(command in commands):
+            if(command == 'Start Body Position Check'):
+                self.start_body_position_check()
+            elif(command == 'Stop Body Position Check'):
+                self.stop_body_position_check()
+            elif(command == 'Body Release'):
+                self.body_release()
+            elif(command == 'Start Sanitize'):
+                self.start_sanitizer()
+        else:
+            raise Exception('Unknown command')
 
     # def start_oximeter(self):
     #     pulse_rate_samples = []
