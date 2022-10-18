@@ -5,13 +5,16 @@ from Crypto.Cipher import AES
 from base64 import b64encode,b64decode
 from escpos.printer import Usb
 from datetime import datetime
+from bp3gy12n import Microlife_BTLE
 import cv2
 import numpy as np
 # import max30102
 # import hrcalc
+import bpm_db
 import speech_recognition
 import pyttsx3
 import serial
+import sqlite3
 
 class Medbot:
     def __init__(self, database):
@@ -186,7 +189,7 @@ class Medbot:
         else:
             raise Exception('Unknown command')
 
-    # def start_oximeter(self):
+    # def get_pulse_rate_and_blood_saturation(self):
     #     pulse_rate_samples = []
     #     blood_saturation_samples = []
     #     count = 0
@@ -205,8 +208,25 @@ class Medbot:
     #     self.latest_reading['blood_saturation'] = average_blood_saturation
     #     return average_pulse_rate, average_blood_saturation
 
-    # start blood presssure monitor
-
+    def start_blood_pressure_monitor(self):
+        args = bpm_db.parse_commandline()
+        bpm = Microlife_BTLE(args.id)
+        if args.id:
+            print('desired_id', args.id)
+        bpm.bluetooth_communication(bpm_db.patient_id_callback)
+        if bpm.get_patient_id() and bpm.get_measurements():
+            bpm_db.insert_measurements(bpm.get_patient_id(), bpm.get_measurements())
+        connection = sqlite3.connect(bpm_db.get_db())
+        cursor = connection.cursor()
+        query = '''SELECT * FROM measurements'''
+        cursor.execute(query)
+        latest_row = cursor.fetchall()[-1]
+        systolic = latest_row[4]
+        diastolic = latest_row[3]
+        self.latest_reading['systolic'] = systolic
+        self.latest_reading['diastolic'] = diastolic
+        return systolic, diastolic
+            
     def save_reading(self,pulse_rate, systolic, diastolic, blood_saturation):
         blood_pressure = diastolic + ((systolic - diastolic)/3)
         date_now = datetime.now()
