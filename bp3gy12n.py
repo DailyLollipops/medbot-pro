@@ -1,15 +1,11 @@
-import asyncio as __asyncio
-from datetime import datetime as __datetime
-import sys as __sys
-from bleak import discover as __discover
-from bleak import BleakClient  as __BleakClient
+import sys
 
 
 ########################################################
 #                 Platform-specific Code               #
 ########################################################
 
-if __sys.platform == 'linux':
+if sys.platform == 'linux':
     import dbus
     # This Linux-specific function returns all the Bluetooth
     # devices that have been paired with this computer.
@@ -29,7 +25,7 @@ if __sys.platform == 'linux':
                 paired_devices.add(device['Address'].lower())
         return paired_devices
 
-elif __sys.platform == 'win32':
+elif sys.platform == 'win32':
     import winreg
     class WindowsBluetooth():
         def subKeys(self, key, size):
@@ -83,18 +79,21 @@ else:
 # Device Discovery: this class communicates with all available Bluetooth LE
 # devices, identifies the Blood Pressure Monitor and downloads its data.
 class Discovery:
+    from bleak import BleakScanner as __BleakScanner
+    from bleak import BleakClient as __BleakClient
+    import asyncio as __asyncio
 
     def __init__(self, bpm, patient_id_cb):
         self.bpm = bpm
         self.patient_id_cb = patient_id_cb
         self.found_device = None
         if self.bpm.loop is None:
-            __asyncio.run(self.run())                      # since Python 3.10
+            self.__asyncio.run(self.run())                      # since Python 3.10
         else:
             self.bpm.loop.run_until_complete(self.run()) # before Python 3.10
 
     async def run(self):
-        self.devices = await __discover()
+        self.devices = await self.__BleakScanner.discover()
 
         # restrict to only devices that have been paired with this computer
         paired_devices = paired_bluetooth_devices()
@@ -111,10 +110,10 @@ class Discovery:
             self.bpm.prnt("Bluetooth Blood Presssure Monitor not found, "
                           "no paired Bluetooth LE devices detected.")
             return
-        tasks = [__asyncio.ensure_future(self.isbpm(d.address,d.name))
+        tasks = [self.__asyncio.ensure_future(self.isbpm(d.address,d.name))
                  for d in self.devices]
         try:
-            await __asyncio.gather(*tasks)
+            await self.__asyncio.gather(*tasks)
         except:
             pass
         if not self.found_device:
@@ -136,7 +135,7 @@ class Discovery:
             # do not pass loop in Python 3.10
             args = {} if self.bpm.loop is None else { 'loop' : self.bpm.loop }
 
-            async with __BleakClient(mac_addr, **args) as client:
+            async with self.__BleakClient(mac_addr, **args) as client:
                 if self.found_device:
                     return # another coroutine has already found it
                 services = await client.get_services()
@@ -167,6 +166,8 @@ class Discovery:
 
 
 class Microlife_BTLE():
+    from datetime import datetime as __datetime
+    import asyncio as __asyncio
 
     # The Microlife Blood Pressure Monitor with Bluetooth that Costco sells.
 
@@ -197,7 +198,7 @@ class Microlife_BTLE():
     def __init__(self, update_id=None, prnt = None):
         self.user = None          # patient 1 or 2 selected in device
         self.patient_id = None    # patient id stored in device
-        self.blood_pressure_measurements = [] # (date_time, __sys, dia, pulse)
+        self.blood_pressure_measurements = [] # (date_time, sys, dia, pulse)
         self.prnt = prnt
         self.in_gui = True
         if not prnt:
@@ -205,10 +206,10 @@ class Microlife_BTLE():
             self.in_gui = False
         self.update_id = update_id
 
-        self.loop = __asyncio.get_event_loop() \
-               if __sys.version_info.major == 3 and __sys.version_info.minor < 10 \
+        self.loop = self.__asyncio.get_event_loop() \
+               if sys.version_info.major == 3 and sys.version_info.minor < 10 \
                else None                      # event loop only for pre-3.10
-        self.result_event = __asyncio.Event()   # event signals result received
+        self.result_event = self.__asyncio.Event()   # event signals result received
         self.received_value = bytearray()     # data received so far
         self.result = bytearray()             # command result received
 
@@ -216,7 +217,7 @@ class Microlife_BTLE():
     def get_patient_id(self):
         return self.patient_id
 
-    # returns a list of quadruples (date-time, __sys, dia, pulse)
+    # returns a list of quadruples (date-time, sys, dia, pulse)
     def get_measurements(self):
         return self.blood_pressure_measurements
 
@@ -224,7 +225,7 @@ class Microlife_BTLE():
     def patient_id_callback(self, patient_id):
         if not patient_id:
             print("Error: No patient id set in blood pressure monitor. "
-                "Run with option '--id' to set one.", file=__sys.stderr)
+                "Run with option '--id' to set one.", file=sys.stderr)
         return patient_id, False
         
     # invokes Bluetooth LE communication
@@ -266,13 +267,13 @@ class Microlife_BTLE():
     async def get_data(self):
         result = await self.send_command(self.CMD_GET_MEASUREMENTS)
         for i in range(38, len(result), 10):
-            (__sys, dia, pulse, year, month, day, hour, minute) = result[i:i+8]
+            (sys, dia, pulse, year, month, day, hour, minute) = result[i:i+8]
             year += 2000
             measurement = ('%d-%2.2d-%2.2d %2.2d:%2.2d' %
                            (year, month, day, hour, minute),
-                           __sys, dia, pulse)
+                           sys, dia, pulse)
             if not self.in_gui:
-                self.prnt('%s  __sys %d mmHg, dia %d mmHg, pulse %d /min' %
+                self.prnt('%s  sys %d mmHg, dia %d mmHg, pulse %d /min' %
                           measurement)
             self.blood_pressure_measurements.append(measurement)
 
@@ -300,7 +301,7 @@ class Microlife_BTLE():
 
     # sends current date and time to blood pressure monitor
     async def set_date_and_time(self):
-        dt = __datetime.now()
+        dt = self.__datetime.now()
         set_time_cmd = [77, 255, 0, 8, 13, dt.year - 2000, dt.month,
                         dt.day, dt.hour, dt.minute, dt.second]
         set_time_cmd.append(sum(set_time_cmd) % 256) # append checksum
@@ -342,8 +343,8 @@ class Microlife_BTLE():
             cmd = next_cmd
         if wait_for_response:
             try:
-                await __asyncio.wait_for(self.result_event.wait(), TIMEOUT)
-            except __asyncio.TimeoutError:
+                await self.__asyncio.wait_for(self.result_event.wait(), TIMEOUT)
+            except self.__asyncio.TimeoutError:
                 raise Exception("Notification not received in %d seconds" %
                                 TIMEOUT)
             self.result_event.clear()
