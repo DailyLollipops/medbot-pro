@@ -135,18 +135,18 @@ class Medbot:
         self.current_user = None
         self.has_user = False
 
-    def start_body_position_check(self):
-        command = 'Start Body Position Check'
+    def start_body_check(self):
+        command = 'Start Body Check'
         self.arduino.write(command.encode())
         self.body_check_started = True
         self.body_check_in_progress = True
 
-    def wait_body_position_check(self):
+    def wait_body_check(self):
         if(self.body_check_in_progress):
             while(self.body_check_in_progress):
                 if(self.arduino.inWaiting > 0):
                     response = self.arduino.readline()
-                    if(response == 'Body Position Check Complete'):
+                    if(response == 'Body Check Complete'):
                         self.body_check_started = False
                         self.body_check_in_progress = False
                         self.body_check_completed = True
@@ -156,8 +156,8 @@ class Medbot:
         else:
             raise Exception('Body check is not started')
 
-    def stop_body_position_check(self):
-        command = 'Stop Body Position Check'
+    def stop_body_check(self):
+        command = 'Stop Body Check'
         self.arduino.write(command.encode())
         self.body_check_in_progress = False
     
@@ -169,19 +169,19 @@ class Medbot:
         self.arduino.write(command.encode())
         
     def get_arduino_response(self):
-        # Possible response('Body Position Check Completed','Sanitize Completed,)
+        # Possible response('Body Check Completed','Sanitize Completed,)
         if(self.arduino.inWaiting > 0):
             response = self.arduino.readline()
             return response
 
     def send_command(self, command):
-        # Possible commands('Start Body Position Check','Stop Body Position Check',
+        # Possible commands('Start Body Check','Stop Body Check',
         #   'Start Sanitize', 'Body Release')
-        commands = ['Start Body Position Check', 'Stop Body Position Check', 'Start Sanitize', 'Body Release']
+        commands = ['Start Body Check', 'Stop Body Check', 'Start Sanitize', 'Body Release']
         if(command in commands):
-            if(command == 'Start Body Position Check'):
+            if(command == 'Start Body Check'):
                 self.start_body_position_check()
-            elif(command == 'Stop Body Position Check'):
+            elif(command == 'Stop Body Check'):
                 self.stop_body_position_check()
             elif(command == 'Body Release'):
                 self.body_release()
