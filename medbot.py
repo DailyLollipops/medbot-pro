@@ -12,7 +12,7 @@ from bp3gy12n import Microlife_BTLE as __Microlife_BTLE
 from serial import Serial as __Serial
 import cv2 as __cv2
 import numpy as __numpy
-# import hrcalc as __hrcalc
+# import utility as __utility
 import speech_recognition as __speech_recognition
 import pyttsx3 as __ppyttsx3
 
@@ -198,7 +198,7 @@ class Medbot:
         # count = 0
         # while(True):
         #     red, ir = self.oximeter.read_sequential()
-        #     pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = __hrcalc.calc_hr_and_spo2(ir[:100], red[:100])
+        #     pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = __utility.calc_hr_and_spo2(ir[:100], red[:100])
         #     if(pulse_rate_valid and blood_saturation_valid and count <= 10):
         #         pulse_rate_samples.append(pulse_rate)
         #         blood_saturation_samples.append(blood_saturation)

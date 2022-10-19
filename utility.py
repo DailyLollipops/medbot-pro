@@ -1,40 +1,36 @@
-# -*-coding:utf-8
+import numpy as __numpy
 
-import numpy as np
-
-# 25 samples per second (in algorithm.h)
-SAMPLE_FREQ = 25
-# taking moving average of 4 samples when calculating HR
-# in algorithm.h, "DONOT CHANGE" comment is attached
-MA_SIZE = 4
-# sampling frequency * 4 (in algorithm.h)
-BUFFER_SIZE = 100
-
-
-# this assumes ir_data and red_data as np.array
+# this assumes ir_data and red_data as __numpy.array
 def calc_hr_and_spo2(ir_data, red_data):
     """
     By detecting  peaks of PPG cycle and corresponding AC/DC
     of red/infra-red signal, the an_ratio for the SPO2 is computed.
     """
+    # 25 samples per second (in algorithm.h)
+    SAMPLE_FREQ = 25
+    # taking moving average of 4 samples when calculating HR
+    # in algorithm.h, "DONOT CHANGE" comment is attached
+    MA_SIZE = 4
+    # sampling frequency * 4 (in algorithm.h)
+    BUFFER_SIZE = 100
     # get dc mean
-    ir_mean = int(np.mean(ir_data))
+    ir_mean = int(__numpy.mean(ir_data))
 
     # remove DC mean and inver signal
     # this lets peak detecter detect valley
-    x = -1 * (np.array(ir_data) - ir_mean)
+    x = -1 * (__numpy.array(ir_data) - ir_mean)
 
     # 4 point moving average
-    # x is np.array with int values, so automatically casted to int
+    # x is __numpy.array with int values, so automatically casted to int
     for i in range(x.shape[0] - MA_SIZE):
-        x[i] = np.sum(x[i:i+MA_SIZE]) / MA_SIZE
+        x[i] = __numpy.sum(x[i:i+MA_SIZE]) / MA_SIZE
 
     # calculate threshold
-    n_th = int(np.mean(x))
+    n_th = int(__numpy.mean(x))
     n_th = 30 if n_th < 30 else n_th  # min allowed
     n_th = 60 if n_th > 60 else n_th  # max allowed
 
-    ir_valley_locs, n_peaks = find_peaks(x, BUFFER_SIZE, n_th, 4, 15)
+    ir_valley_locs, n_peaks = __find_peaks(x, BUFFER_SIZE, n_th, 4, 15)
     # print(ir_valley_locs[:n_peaks], ",", end="")
     peak_interval_sum = 0
     if n_peaks >= 2:
@@ -122,17 +118,16 @@ def calc_hr_and_spo2(ir_data, red_data):
     return hr, hr_valid, spo2, spo2_valid
 
 
-def find_peaks(x, size, min_height, min_dist, max_num):
+def __find_peaks(x, size, min_height, min_dist, max_num):
     """
     Find at most MAX_NUM peaks above MIN_HEIGHT separated by at least MIN_DISTANCE
     """
     ir_valley_locs, n_peaks = find_peaks_above_min_height(x, size, min_height, max_num)
-    ir_valley_locs, n_peaks = remove_close_peaks(n_peaks, ir_valley_locs, x, min_dist)
+    ir_valley_locs, n_peaks = __remove_close_peaks(n_peaks, ir_valley_locs, x, min_dist)
 
     n_peaks = min([n_peaks, max_num])
 
     return ir_valley_locs, n_peaks
-
 
 def find_peaks_above_min_height(x, size, min_height, max_num):
     """
@@ -161,8 +156,7 @@ def find_peaks_above_min_height(x, size, min_height, max_num):
 
     return ir_valley_locs, n_peaks
 
-
-def remove_close_peaks(n_peaks, ir_valley_locs, x, min_dist):
+def __remove_close_peaks(n_peaks, ir_valley_locs, x, min_dist):
     """
     Remove peaks separated by less than MIN_DISTANCE
     """
@@ -193,3 +187,88 @@ def remove_close_peaks(n_peaks, ir_valley_locs, x, min_dist):
     sorted_indices[:n_peaks] = sorted(sorted_indices[:n_peaks])
 
     return sorted_indices, n_peaks
+
+def determine_pulse_rate_rating(age, pulse_rate):
+    if(age <= 1):
+        if(pulse_rate < 100):
+            rating = 'Low Pulse Rate'
+        elif(pulse_rate < 160):
+            rating = 'Normal Pulse Rate'
+        elif(pulse_rate >= 160):
+            rating = 'High Pulse Rate'
+        else:
+            rating = False
+    elif(age <= 3):
+        if(pulse_rate < 80):
+            rating = 'Low Pulse Rate'
+        elif(pulse_rate < 130):
+            rating = 'Normal Pulse Rate'
+        elif(pulse_rate >= 130):
+            rating = 'High Pulse Rate'
+        else:
+            rating = False
+    elif(age <= 5):
+        if(pulse_rate < 80):
+            rating = 'Low Pulse Rate'
+        elif(pulse_rate < 120):
+            rating = 'Normal Pulse Rate'
+        elif(pulse_rate >= 120):
+            rating = 'High Pulse Rate'
+        else:
+            rating = False
+    elif(age <= 10):
+        if(pulse_rate < 70):
+            rating = 'Low Pulse Rate'
+        elif(pulse_rate < 110):
+            rating = 'Normal Pulse Rate'
+        elif(pulse_rate >= 110):
+            rating = 'High Pulse Rate'
+        else:
+            rating = False
+    elif(age <= 14):
+        if(pulse_rate < 60):
+            rating = 'Low Pulse Rate'
+        elif(pulse_rate < 105):
+            rating = 'Normal Pulse Rate'
+        elif(pulse_rate >= 105):
+            rating = 'High Pulse Rate'
+        else:
+            rating = False
+    else:
+        if(pulse_rate < 60):
+            rating = 'Low Pulse Rate'
+        elif(pulse_rate < 100):
+            rating = 'Normal Pulse Rate'
+        elif(pulse_rate >= 100):
+            rating = 'High Pulse Rate'
+        else:
+            rating = False
+    return rating
+
+def determine_blood_pressure_rating(systolic, diastolic):
+    if(systolic < 90 and diastolic < 60):
+        rating = 'Low Blood Pressure'
+    elif(systolic < 120 and diastolic < 80):
+        rating = 'Normal'
+    elif(systolic <= 129 and diastolic < 80):
+        rating = 'Elevated Blood Pressure'
+    elif(systolic <= 139 and diastolic <= 89):
+        rating = 'High Blood Pressure Stage 1'
+    elif(systolic <= 180 and diastolic <= 120):
+        rating = 'High Blood Pressure Stage 2'
+    elif(systolic > 180 and diastolic > 120):
+        rating = 'Hypertensive Crisis'
+    else:
+        rating = False
+    return rating
+
+def determine_blood_saturation_rating(blood_saturation):
+    if(blood_saturation < 95):
+        rating = 'Low Blood Saturation'
+    elif(blood_saturation <= 100):
+        rating = 'Normal Blood Saturation'
+    elif(blood_saturation > 100):
+        rating = 'High Blood Saturation'
+    else:
+        rating = False
+    return rating
