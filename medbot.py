@@ -289,6 +289,9 @@ class Medbot:
         except:
             return self.current_user
 
+    def get_latest_reading(self):
+        return self.latest_reading
+
     def get_current_pulse_rate(self):
         return self.latest_reading['pulse_rate']
 
