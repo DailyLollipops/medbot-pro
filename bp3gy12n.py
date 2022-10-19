@@ -218,11 +218,10 @@ class Microlife_BTLE():
         return self.blood_pressure_measurements
 
     # Callback function for bluetooth_communication function
-    def patient_id_callback(patient_id):
+    def patient_id_callback(self, patient_id):
         if not patient_id:
             print("Error: No patient id set in blood pressure monitor. "
                 "Run with option '--id' to set one.", file=sys.stderr)
-        print(patient_id)
         return patient_id, False
         
     # invokes Bluetooth LE communication
