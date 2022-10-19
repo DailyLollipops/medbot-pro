@@ -1,6 +1,7 @@
-from datetime import datetime, date
-import mysql.connector
-import bcrypt
+from datetime import datetime as __datetime 
+from datetime import date as __date
+import mysql.connector as __mysql_connector
+import bcrypt as __bcrypt
 
 class Database:
     def __init__(self, host, database, user, password):
@@ -9,7 +10,7 @@ class Database:
         self.user = user
         self.password = password
         try:
-            self.connection = mysql.connector.connect(host = self.host,
+            self.connection = __mysql_connector.connect(host = self.host,
                                         database = self.database,
                                         user = self.user,
                                         password = self.password)
@@ -29,8 +30,8 @@ class Database:
             raise Exception('User does not exist in the current database')
 
     def __get_age(self, birthday):
-        birthday = datetime.strptime(str(birthday), "%Y-%m-%d").date()
-        today = date.today()  
+        birthday = __datetime.strptime(str(birthday), "%Y-%m-%d").date()
+        today = __date.today()  
         age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
         return age
 
@@ -49,7 +50,7 @@ class Database:
         password_bytes = user.password.encode('utf-8')
         record = self.__get_user_info(user)
         stored_password = record[10].encode('utf-8')
-        result = bcrypt.checkpw(password_bytes, stored_password)
+        result = __bcrypt.checkpw(password_bytes, stored_password)
         if(result):
             user.name = record[1]
             user.age = self.__get_age(record[2])

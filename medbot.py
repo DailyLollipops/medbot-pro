@@ -1,19 +1,20 @@
-from user import User
-from pyzbar.pyzbar import decode
-from Crypto.Util.Padding import pad, unpad
-from Crypto.Cipher import AES
-from base64 import b64encode,b64decode
-from escpos.printer import Usb
-from datetime import datetime
-from bp3gy12n import Microlife_BTLE
-import cv2
-import numpy as np
-# import max30102
-# import hrcalc
-import speech_recognition
-import pyttsx3
-import serial
-import sqlite3
+from user import User as __User
+from pyzbar.pyzbar import decode as __decode
+from Crypto.Util.Padding import pad as __pad
+from Crypto.Util.Padding import unpad as __unpad
+from Crypto.Cipher import AES as __AES
+from base64 import b64encode as __b64encode
+from base64 import b64decode as __b64decode
+from escpos.printer import Usb as __Usb
+from datetime import datetime as __datetime
+# from max30102 import MAX30102 as __MAX30102
+from bp3gy12n import Microlife_BTLE as __Microlife_BTLE
+from serial import Serial as __Serial
+import cv2 as __cv2
+import numpy as __numpy
+# import hrcalc as __hrcalc
+import speech_recognition as __speech_recognition
+import pyttsx3 as __ppyttsx3
 
 class Medbot:
     def __init__(self, database):
@@ -21,15 +22,15 @@ class Medbot:
         self.__password = bytes('MedbotPRBPM' + '\0\0\0\0\0', 'utf-8')
         self.current_user = None,
         self.has_user = False
-        self.qrcode_scanner = cv2.VideoCapture(0)
-        # self.oximeter = max30102.MAX30102()
-        self.blood_pressure_monitor  = Microlife_BTLE()
-        self.recognizer = speech_recognition.Recognizer()
-        self.microphone = speech_recognition.Microphone(device_index = 2)
-        self.speaker = pyttsx3.init()
-        # self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
+        self.qrcode_scanner = __cv2.VideoCapture(0)
+        # self.oximeter = __MAX30102()
+        self.blood_pressure_monitor  = __Microlife_BTLE()
+        self.recognizer = __speech_recognition.Recognizer()
+        self.microphone = __speech_recognition.Microphone(device_index = 2)
+        self.speaker = __ppyttsx3.init()
+        # self.printer = __Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
         self.printer = None
-        # self.arduino = serial.Serial('/dev/ttyACM0', 9600, timeout = 1)
+        # self.arduino = __Serial('/dev/ttyACM0', 9600, timeout = 1)
         self.arduino = None
         self.body_check_started = False
         self.body_check_in_progress = False
@@ -42,28 +43,28 @@ class Medbot:
         }
 
     def __decode(self, image):
-        trans_img = cv2.cvtColor(image,0)
-        qrcode = decode(trans_img)
+        trans_img = __cv2.cvtColor(image,0)
+        qrcode = __decode(trans_img)
         for obj in qrcode:
             points = obj.polygon
             (x,y,w,h) = obj.rect
-            pts = np.array(points, np.int32)
+            pts = __numpy.array(points, __numpy.int32)
             pts = pts.reshape((-1, 1, 2))
             thickness = 2
             isClosed = True
             line_color = (0, 0, 255)
-            cv2.polylines(image, [pts], isClosed, line_color, thickness)
+            __cv2.polylines(image, [pts], isClosed, line_color, thickness)
             data = obj.data.decode("utf-8")
             return data
 
     def __encrypt(self, decrypted):
-        cipher = AES.new(self.__password,AES.MODE_ECB)
-        encrypted = b64encode(cipher.encrypt(pad(decrypted.encode(),16))).decode()
+        cipher = __AES.new(self.__password,__AES.MODE_ECB)
+        encrypted = __b64encode(cipher.encrypt(__pad(decrypted.encode(),16))).decode()
         return encrypted
 
     def __decrypt(self, encrypted):
-        cipher = AES.new(self.__password, AES.MODE_ECB)
-        decrypted = unpad(cipher.decrypt(b64decode(encrypted.encode())),16).decode()
+        cipher = __AES.new(self.__password, __AES.MODE_ECB)
+        decrypted = __unpad(cipher.decrypt(__b64decode(encrypted.encode())),16).decode()
         return decrypted
 
     def __verify_qrcode(self, qrdata):
@@ -79,18 +80,18 @@ class Medbot:
         while True:
             ret, frame = self.qrcode_scanner.read()
             encrypted_data = self.__decode(frame)
-            cv2.imshow('Image', frame)
-            cv2.waitKey(1)
+            __cv2.imshow('Image', frame)
+            __cv2.waitKey(1)
             if(encrypted_data != None):
                 decrypted_data = self.__decrypt(encrypted_data)
                 break
-        cv2.destroyAllWindows()
+        __cv2.destroyAllWindows()
         return decrypted_data
                 
     def login(self):
         qrdata = self.__scan_qrcode()
         id, password = self.__verify_qrcode(qrdata)
-        user = User(id, password)
+        user = __User(id, password)
         success = self.database.verify(user)
         if(success):
             user.authenticated = True
@@ -106,7 +107,7 @@ class Medbot:
         if self.qrcode_scanner.isOpened():
             ret, frame = self.qrcode_scanner.read()
             if ret:
-                return (ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                return (ret, __cv2.cvtColor(frame, __cv2.COLOR_BGR2RGB))
             else:
                 return (ret, None)
         else:
@@ -118,7 +119,7 @@ class Medbot:
         if(encrypted_data != None):
             decrypted_data = self.__decrypt(encrypted_data)
             id, password = self.__verify_qrcode(decrypted_data)
-            user = User(id, password)
+            user = __User(id, password)
             success = self.database.verify(user)
             if(success):
                 user.authenticated = True
@@ -197,7 +198,7 @@ class Medbot:
         # count = 0
         # while(True):
         #     red, ir = self.oximeter.read_sequential()
-        #     pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = hrcalc.calc_hr_and_spo2(ir[:100], red[:100])
+        #     pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = __hrcalc.calc_hr_and_spo2(ir[:100], red[:100])
         #     if(pulse_rate_valid and blood_saturation_valid and count <= 10):
         #         pulse_rate_samples.append(pulse_rate)
         #         blood_saturation_samples.append(blood_saturation)
@@ -223,7 +224,7 @@ class Medbot:
             
     def save_reading(self,pulse_rate, systolic, diastolic, blood_saturation):
         blood_pressure = diastolic + ((systolic - diastolic)/3)
-        date_now = datetime.now()
+        date_now = __datetime.now()
         values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
         self.database.insert_record('readings', values)
 
