@@ -10,7 +10,6 @@ import cv2
 import numpy as np
 # import max30102
 # import hrcalc
-import bpm_db
 import speech_recognition
 import pyttsx3
 import serial
@@ -24,6 +23,7 @@ class Medbot:
         self.has_user = False
         self.qrcode_scanner = cv2.VideoCapture(0)
         # self.oximeter = max30102.MAX30102()
+        self.blood_pressure_monitor  = Microlife_BTLE()
         self.recognizer = speech_recognition.Recognizer()
         self.microphone = speech_recognition.Microphone(device_index = 2)
         self.speaker = pyttsx3.init()
@@ -209,22 +209,14 @@ class Medbot:
     #     return average_pulse_rate, average_blood_saturation
 
     def start_blood_pressure_monitor(self):
-        args = bpm_db.parse_commandline()
-        bpm = Microlife_BTLE(args.id)
-        if args.id:
-            print('desired_id', args.id)
-        bpm.bluetooth_communication(bpm_db.patient_id_callback)
-        if bpm.get_patient_id() and bpm.get_measurements():
-            bpm_db.insert_measurements(bpm.get_patient_id(), bpm.get_measurements())
-        connection = sqlite3.connect(bpm_db.get_db())
-        cursor = connection.cursor()
-        query = '''SELECT * FROM measurements'''
-        cursor.execute(query)
-        latest_row = cursor.fetchall()[-1]
-        systolic = latest_row[4]
-        diastolic = latest_row[3]
+        self.blood_pressure_monitor.bluetooth_communication(self.blood_pressure_monitor.patient_id_callback)
+        latest_measurement = self.blood_pressure_monitor.get_measurements()[-1]
+        systolic = latest_measurement[1]
+        diastolic = latest_measurement[2]
+        # pulse_rate = latest_measurement[3]
         self.latest_reading['systolic'] = systolic
         self.latest_reading['diastolic'] = diastolic
+        # self.latest_reading['pulse_rate'] = pulse_rate
         return systolic, diastolic
             
     def save_reading(self,pulse_rate, systolic, diastolic, blood_saturation):
