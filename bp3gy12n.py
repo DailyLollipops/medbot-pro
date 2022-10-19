@@ -85,7 +85,10 @@ class Discovery:
         self.bpm = bpm
         self.patient_id_cb = patient_id_cb
         self.found_device = None
-        asyncio.run(self.run())
+        if self.bpm.loop is None:
+            asyncio.run(self.run())                      # since Python 3.10
+        else:
+            self.bpm.loop.run_until_complete(self.run()) # before Python 3.10
 
     async def run(self):
         self.devices = await discover()
@@ -126,7 +129,11 @@ class Discovery:
         try:
             if self.found_device:
                 return # another coroutine has already found it
-            async with BleakClient(mac_addr) as client:
+
+            # do not pass loop in Python 3.10
+            args = {} if self.bpm.loop is None else { 'loop' : self.bpm.loop }
+
+            async with BleakClient(mac_addr, **args) as client:
                 if self.found_device:
                     return # another coroutine has already found it
                 services = await client.get_services()
@@ -195,6 +202,9 @@ class Microlife_BTLE():
             self.in_gui = False
         self.update_id = update_id
 
+        self.loop = asyncio.get_event_loop() \
+               if sys.version_info.major == 3 and sys.version_info.minor < 10 \
+               else None                      # event loop only for pre-3.10
         self.result_event = asyncio.Event()   # event signals result received
         self.received_value = bytearray()     # data received so far
         self.result = bytearray()             # command result received
@@ -328,3 +338,20 @@ class Microlife_BTLE():
                                 TIMEOUT)
             self.result_event.clear()
             return self.result
+
+
+if __name__ == '__main__':
+
+    import bpm_db
+
+    args = bpm_db.parse_commandline()
+
+    bpm = Microlife_BTLE(args.id)
+
+    if args.id:
+        print('desired_id', args.id)
+
+    bpm.bluetooth_communication(bpm_db.patient_id_callback)
+
+    if bpm.get_patient_id() and bpm.get_measurements():
+        bpm_db.insert_measurements(bpm.get_patient_id(), bpm.get_measurements())
