@@ -1,4 +1,8 @@
+import asyncio
+import datetime
 import sys
+from bleak import discover
+from bleak import BleakClient # install with 'pip install bleak'
 
 
 ########################################################
@@ -79,21 +83,18 @@ else:
 # Device Discovery: this class communicates with all available Bluetooth LE
 # devices, identifies the Blood Pressure Monitor and downloads its data.
 class Discovery:
-    from bleak import BleakScanner as __BleakScanner
-    from bleak import BleakClient as __BleakClient
-    import asyncio as __asyncio
 
     def __init__(self, bpm, patient_id_cb):
         self.bpm = bpm
         self.patient_id_cb = patient_id_cb
         self.found_device = None
         if self.bpm.loop is None:
-            self.__asyncio.run(self.run())                      # since Python 3.10
+            asyncio.run(self.run())                      # since Python 3.10
         else:
             self.bpm.loop.run_until_complete(self.run()) # before Python 3.10
 
     async def run(self):
-        self.devices = await self.__BleakScanner.discover()
+        self.devices = await discover()
 
         # restrict to only devices that have been paired with this computer
         paired_devices = paired_bluetooth_devices()
@@ -110,10 +111,10 @@ class Discovery:
             self.bpm.prnt("Bluetooth Blood Presssure Monitor not found, "
                           "no paired Bluetooth LE devices detected.")
             return
-        tasks = [self.__asyncio.ensure_future(self.isbpm(d.address,d.name))
+        tasks = [asyncio.ensure_future(self.isbpm(d.address,d.name))
                  for d in self.devices]
         try:
-            await self.__asyncio.gather(*tasks)
+            await asyncio.gather(*tasks)
         except:
             pass
         if not self.found_device:
@@ -135,7 +136,7 @@ class Discovery:
             # do not pass loop in Python 3.10
             args = {} if self.bpm.loop is None else { 'loop' : self.bpm.loop }
 
-            async with self.__BleakClient(mac_addr, **args) as client:
+            async with BleakClient(mac_addr, **args) as client:
                 if self.found_device:
                     return # another coroutine has already found it
                 services = await client.get_services()
@@ -166,8 +167,6 @@ class Discovery:
 
 
 class Microlife_BTLE():
-    from datetime import datetime as __datetime
-    import asyncio as __asyncio
 
     # The Microlife Blood Pressure Monitor with Bluetooth that Costco sells.
 
@@ -206,10 +205,10 @@ class Microlife_BTLE():
             self.in_gui = False
         self.update_id = update_id
 
-        self.loop = self.__asyncio.get_event_loop() \
+        self.loop = asyncio.get_event_loop() \
                if sys.version_info.major == 3 and sys.version_info.minor < 10 \
                else None                      # event loop only for pre-3.10
-        self.result_event = self.__asyncio.Event()   # event signals result received
+        self.result_event = asyncio.Event()   # event signals result received
         self.received_value = bytearray()     # data received so far
         self.result = bytearray()             # command result received
 
@@ -301,7 +300,7 @@ class Microlife_BTLE():
 
     # sends current date and time to blood pressure monitor
     async def set_date_and_time(self):
-        dt = self.__datetime.now()
+        dt = datetime.datetime.now()
         set_time_cmd = [77, 255, 0, 8, 13, dt.year - 2000, dt.month,
                         dt.day, dt.hour, dt.minute, dt.second]
         set_time_cmd.append(sum(set_time_cmd) % 256) # append checksum
@@ -343,8 +342,8 @@ class Microlife_BTLE():
             cmd = next_cmd
         if wait_for_response:
             try:
-                await self.__asyncio.wait_for(self.result_event.wait(), TIMEOUT)
-            except self.__asyncio.TimeoutError:
+                await asyncio.wait_for(self.result_event.wait(), TIMEOUT)
+            except asyncio.TimeoutError:
                 raise Exception("Notification not received in %d seconds" %
                                 TIMEOUT)
             self.result_event.clear()
