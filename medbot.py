@@ -1,3 +1,4 @@
+from random import randint
 from user import User
 from pyzbar.pyzbar import decode
 from Crypto.Util.Padding import pad, unpad
@@ -189,7 +190,7 @@ class Medbot:
         else:
             raise Exception('Unknown command')
 
-    # def get_pulse_rate_and_blood_saturation(self):
+    def start_oximeter(self):
     #     pulse_rate_samples = []
     #     blood_saturation_samples = []
     #     count = 0
@@ -204,9 +205,11 @@ class Medbot:
     #             break
     #     average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
     #     average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
-    #     self.latest_reading['pulse_rate'] = average_pulse_rate
-    #     self.latest_reading['blood_saturation'] = average_blood_saturation
-    #     return average_pulse_rate, average_blood_saturation
+        average_pulse_rate = randint(50,150)
+        average_blood_saturation = randint(80,110)
+        self.latest_reading['pulse_rate'] = average_pulse_rate
+        self.latest_reading['blood_saturation'] = average_blood_saturation
+        return average_pulse_rate, average_blood_saturation
 
     def start_blood_pressure_monitor(self):
         self.blood_pressure_monitor.bluetooth_communication(self.blood_pressure_monitor.patient_id_callback)
