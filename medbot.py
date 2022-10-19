@@ -1,4 +1,3 @@
-from random import randint
 from user import User
 from pyzbar.pyzbar import decode
 from Crypto.Util.Padding import pad, unpad
@@ -191,22 +190,22 @@ class Medbot:
             raise Exception('Unknown command')
 
     def start_oximeter(self):
-    #     pulse_rate_samples = []
-    #     blood_saturation_samples = []
-    #     count = 0
-    #     while(True):
-    #         red, ir = self.oximeter.read_sequential()
-    #         pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = hrcalc.calc_hr_and_spo2(ir[:100], red[:100])
-    #         if(pulse_rate_valid and blood_saturation_valid and count <= 10):
-    #             pulse_rate_samples.append(pulse_rate)
-    #             blood_saturation_samples.append(blood_saturation)
-    #             count = count + 1
-    #         if(count > 10):
-    #             break
-    #     average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
-    #     average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
-        average_pulse_rate = randint(50,150)
-        average_blood_saturation = randint(80,110)
+        average_pulse_rate = None
+        average_blood_saturation = None
+        # pulse_rate_samples = []
+        # blood_saturation_samples = []
+        # count = 0
+        # while(True):
+        #     red, ir = self.oximeter.read_sequential()
+        #     pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = hrcalc.calc_hr_and_spo2(ir[:100], red[:100])
+        #     if(pulse_rate_valid and blood_saturation_valid and count <= 10):
+        #         pulse_rate_samples.append(pulse_rate)
+        #         blood_saturation_samples.append(blood_saturation)
+        #         count = count + 1
+        #     if(count > 10):
+        #         break
+        # average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
+        # average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
         self.latest_reading['pulse_rate'] = average_pulse_rate
         self.latest_reading['blood_saturation'] = average_blood_saturation
         return average_pulse_rate, average_blood_saturation
