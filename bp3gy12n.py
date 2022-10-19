@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import sys
-from bleak import discover
+from bleak import BleakScanner
 from bleak import BleakClient # install with 'pip install bleak'
 
 
@@ -94,7 +94,7 @@ class Discovery:
             self.bpm.loop.run_until_complete(self.run()) # before Python 3.10
 
     async def run(self):
-        self.devices = await discover()
+        self.devices = await BleakScanner.discover()
 
         # restrict to only devices that have been paired with this computer
         paired_devices = paired_bluetooth_devices()
