@@ -217,6 +217,14 @@ class Microlife_BTLE():
     def get_measurements(self):
         return self.blood_pressure_measurements
 
+    # Callback function for bluetooth_communication function
+    def patient_id_callback(patient_id):
+        if not patient_id:
+            print("Error: No patient id set in blood pressure monitor. "
+                "Run with option '--id' to set one.", file=sys.stderr)
+        print(patient_id)
+        return patient_id, False
+        
     # invokes Bluetooth LE communication
     def bluetooth_communication(self, patient_id_callback):
         self.prnt('Starting discovery, listening on Bluetooth for '
@@ -338,20 +346,3 @@ class Microlife_BTLE():
                                 TIMEOUT)
             self.result_event.clear()
             return self.result
-
-
-if __name__ == '__main__':
-
-    import bpm_db
-
-    args = bpm_db.parse_commandline()
-
-    bpm = Microlife_BTLE(args.id)
-
-    if args.id:
-        print('desired_id', args.id)
-
-    bpm.bluetooth_communication(bpm_db.patient_id_callback)
-
-    if bpm.get_patient_id() and bpm.get_measurements():
-        bpm_db.insert_measurements(bpm.get_patient_id(), bpm.get_measurements())
