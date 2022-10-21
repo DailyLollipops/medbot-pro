@@ -1,4 +1,4 @@
-from user import User
+from .__user import User
 from pyzbar.pyzbar import decode
 from Crypto.Util.Padding import pad
 from Crypto.Util.Padding import unpad
@@ -7,14 +7,16 @@ from base64 import b64encode
 from base64 import b64decode
 from escpos.printer import Usb
 from datetime import datetime
-# from max30102 import MAX30102
-from bp3gy12n import Microlife_BTLE
+# from .__max30102 import MAX30102
+from .__bp3gy12n import Microlife_BTLE
 from serial import Serial
 import cv2
 import numpy
-import utility
+from .__utility import *
 import speech_recognition
 import pyttsx3
+
+__all__ = ['Medbot']
 
 class Medbot:
     def __init__(self, database):
@@ -137,7 +139,7 @@ class Medbot:
 
     def start_body_check(self):
         command = 'Start Body Check'
-        self.arduino.write(command.encode())
+        # self.arduino.write(command.encode())
         self.body_check_started = True
         self.body_check_in_progress = True
 

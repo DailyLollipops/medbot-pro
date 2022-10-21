@@ -1,5 +1,7 @@
 import numpy as __numpy
 
+__all__ = []
+
 # this assumes ir_data and red_data as __numpy.array
 def calc_hr_and_spo2(ir_data, red_data):
     """

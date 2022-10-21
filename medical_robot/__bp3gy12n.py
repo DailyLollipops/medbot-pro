@@ -4,6 +4,7 @@ import sys
 from bleak import BleakScanner
 from bleak import BleakClient # install with 'pip install bleak'
 
+__all__ = []
 
 ########################################################
 #                 Platform-specific Code               #

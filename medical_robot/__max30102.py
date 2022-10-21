@@ -7,6 +7,8 @@ from time import sleep
 import RPi.GPIO as GPIO
 import smbus
 
+__all__ = []
+
 # i2c address-es
 # not required?
 I2C_WRITE_ADDR = 0xAE

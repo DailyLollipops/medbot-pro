@@ -3,6 +3,8 @@ from datetime import date
 import mysql.connector
 import bcrypt
 
+__all__ = ['Database']
+
 class Database:
     def __init__(self, host, database, user, password):
         self.host = host
