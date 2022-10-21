@@ -118,11 +118,24 @@ class Medbot:
             del user
             raise Exception('Invalid Credentials')
 
-    # Clears the current user
+    # Clears the current user and reset the object
     def logout(self):
         self.current_user.authenticated = False
         self.current_user = None
         self.has_user = False
+        self.reset()
+
+    # Reset the object without logging out
+    def reset(self):
+        self.body_check_completed = False
+        self.body_check_started = False
+        self.body_check_in_progress = False
+        self.current_reading = {
+            'pulse_rate': None,
+            'systolic': None,
+            'diastolic': None,
+            'blood_saturation': None
+        }
 
     # Send command to the Arduino to start body check
     # Also includes the body lock operation invoked in the Arduino
