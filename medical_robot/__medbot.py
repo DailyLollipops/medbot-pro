@@ -34,9 +34,8 @@ class Medbot:
         self.has_user = False
         self.qrcode_scanner = cv2.VideoCapture(0)
         # self.oximeter = MAX30102()
-        self.blood_pressure_monitor  = Microlife_BTLE()
         self.recognizer = speech_recognition.Recognizer()
-        self.microphone = speech_recognition.Microphone(device_index = 2)
+        self.microphone = speech_recognition.Microphone()
         self.speaker = pyttsx3.init()
         # self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
         self.printer = None
@@ -45,6 +44,7 @@ class Medbot:
         self.body_check_started = False
         self.body_check_in_progress = False
         self.body_check_completed = False
+        self.listening = False
         self.current_reading = {
             'pulse_rate': None,
             'systolic': None,
@@ -239,8 +239,9 @@ class Medbot:
     def start_blood_pressure_monitor(self):
         # Add button press for blood_pressure_monitor
         # Then wait for some second to start BLE
-        self.blood_pressure_monitor.bluetooth_communication(self.blood_pressure_monitor.patient_id_callback)
-        latest_measurement = self.blood_pressure_monitor.get_measurements()[-1]
+        blood_pressure_monitor = Microlife_BTLE()
+        blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)
+        latest_measurement = blood_pressure_monitor.get_measurements()[-1]
         systolic = latest_measurement[1]
         diastolic = latest_measurement[2]
         # pulse_rate = latest_measurement[3]
@@ -279,25 +280,27 @@ class Medbot:
         return success
 
     # Decodes and return speech from the microphone to text
-    def get_voice_input(self, *accepted_answers):
-        while(True):
+    def get_voice_input(self, accepted_answers = [], on_failure_callback = lambda:print('I cannot understand. Please try again')):
+        self.listening = True
+        while(self.listening):
             try:
                 with self.microphone:
                     self.recognizer.adjust_for_ambient_noise(self.microphone, duration = 1)
+                    print('Speak now')
                     audio = self.recognizer.listen(self.microphone)
                     text = self.recognizer.recognize_google(audio)
                     text = text.lower()
                     if(len(accepted_answers) > 0):
                         if(text in accepted_answers):
                             break
+                        else:
+                            on_failure_callback()
                     else:
                         break
-            except self.recognizer.RequestErrorr:
-                print('Cannot process request now')
-            except self.recognizer.ValueError:
-                print('Value error occured')
+            except:
+                on_failure_callback()
         return text
-    
+
     # Convert text to speech
     def speak(self, text):
         self.speaker.say(text)
