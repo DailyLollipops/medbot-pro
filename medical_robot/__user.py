@@ -1,6 +1,12 @@
 __all__ = ['User']
 
+########################################################
+#                      Main Class                      #
+########################################################
+
+# A user object that a Medbot and Database object returns after successful login
 class User:
+
     def __init__(self, id, password):
         self.id = id
         self.password = password
@@ -9,28 +15,11 @@ class User:
         self.age = None
         self.gender = None
 
-    def is_registered(self, database):
-        check = database.user_exists(self.id)
-        if(check):
-            return True
-        else:
-            return False
-    
-    def login(self, database):
-        success = database.verify(self.id, self.password)
-        if(success):
-            self.authenticated = True
-            info = self.retrieve_info_from_database()
-            self.name = info['name']
-            self.age = self.__get_age(info['birthday'])
-            self.gender = info['gender']
-            return True
-        else:
-            raise Exception('Wrong Credentials')
-
+    # Returns an int(ID)
     def get_id(self):
         return self.id
 
+    # Returns a dictionary of user info
     def get_info(self):
         info = {
             'id': self.id,
@@ -41,5 +30,6 @@ class User:
         }
         return info
 
+    # Returns true if authenticated
     def is_authenticated(self):
         return self.authenticated
