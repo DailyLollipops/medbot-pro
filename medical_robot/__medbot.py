@@ -193,8 +193,8 @@ class Medbot:
             raise Exception('Unknown command')
 
     def start_oximeter(self):
-        average_pulse_rate = None
-        average_blood_saturation = None
+        average_pulse_rate = 120
+        average_blood_saturation = 95
         # pulse_rate_samples = []
         # blood_saturation_samples = []
         # count = 0
@@ -214,6 +214,8 @@ class Medbot:
         return average_pulse_rate, average_blood_saturation
 
     def start_blood_pressure_monitor(self):
+        # Add button press for blood_pressure_monitor
+        # Then wait for some second to start BLE
         self.blood_pressure_monitor.bluetooth_communication(self.blood_pressure_monitor.patient_id_callback)
         latest_measurement = self.blood_pressure_monitor.get_measurements()[-1]
         systolic = latest_measurement[1]
@@ -305,3 +307,10 @@ class Medbot:
 
     def get_current_blood_saturation(self):
         return self.latest_reading['blood_saturation']
+
+########################################################
+#                      For Debugging                   #
+########################################################
+    def body_check_complete(self):
+        self.body_check_completed = True
+        self.body_check_in_progress = False
