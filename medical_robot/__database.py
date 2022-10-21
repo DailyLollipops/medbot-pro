@@ -63,7 +63,7 @@ class Database:
 
     # Returns available insertable columns
     def __get_columns_name(self, table):
-        cursor = self.connection.cursor(dictionary = True)
+        cursor = self.connection.cursor(dictionary = True, buffered = True)
         cursor.execute('SELECT * FROM ' + table)
         sample = cursor.fetchone()
         columns_name = ''
