@@ -239,7 +239,8 @@ class Medbot:
     # Saves current reading to the database
     def save_reading(self,pulse_rate, systolic, diastolic, blood_saturation):
         blood_pressure = diastolic + ((systolic - diastolic)/3)
-        date_now = datetime.now()
+        now = datetime.now()
+        date_now = now.strftime('%Y-%m-%d %H:%M:%S')
         values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
         self.database.insert_record('readings', values)
 

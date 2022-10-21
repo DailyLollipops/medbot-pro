@@ -108,6 +108,6 @@ class Database:
     def insert_record(self, table, values):
         columns = self.__get_columns_name(table)
         cursor = self.connection.cursor()
-        query = 'INSERT INTO readings (' + columns + ') VALUES ('+ '%s' * columns.count(',')+1 +')'
+        query = f'''INSERT INTO {table}({columns}) VALUES ({'%s, ' * (len(values)-1)}%s)'''
         cursor.execute(query, values)
         self.connection.commit()
