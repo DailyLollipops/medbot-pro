@@ -1,23 +1,20 @@
-from database import Database
-from medbot import Medbot
 from tkinter import Image, messagebox
 from PIL import ImageTk,Image
+from threading import Thread
+import medical_robot
 import tkinter
 import time
-from threading import Thread
+import yaml
 
-class PopupMessage:
-    def show_message(window, title, message, timeout = 0):
-        messagebox_container = tkinter.Toplevel(window)
-        messagebox_container.withdraw()
-        if(timeout > 0):
-            messagebox_container.after(timeout, messagebox_container.destroy)
-        else:
-            pass
-        messagebox.showinfo(title, message, parent = messagebox_container)
+def show_message(window, title, message, timeout = 0):
+    messagebox_container = tkinter.Toplevel(window)
+    messagebox_container.withdraw()
+    if(timeout > 0):
+        messagebox_container.after(timeout, messagebox_container.destroy)
+    messagebox.showinfo(title, message, parent = messagebox_container)
 
-class MedbotLoginGui:
-    def __init__(self, medbot):
+class MedbotGUI:
+    def __init__(self, medbot: medical_robot.Medbot):
         self.window = tkinter.Tk()
         self.window.title('Login Window')
         self.window.geometry('800x440')
@@ -25,16 +22,24 @@ class MedbotLoginGui:
         self.window.iconphoto(False, logo)
         self.window.configure(background = 'white')
         self.medbot = medbot
- 
+        self.logged_in = False
+
         self.placeholder = tkinter.Canvas(self.window, width = 380, height = 400)
         self.qrcode = ImageTk.PhotoImage(Image.open('images/qrcode.png').resize((128,166)))
         self.placeholder.create_text(190, 65, text = 'Med-bot: Pulse Rate\nand\nBlood Pressure Monitor',
-                                anchor = tkinter.CENTER, font = ('Lucida',14), justify = 'center')
+                            anchor = tkinter.CENTER, font = ('Lucida',14), justify = 'center')
         self.placeholder.create_image(125, 130, image = self.qrcode, anchor = tkinter.NW)
         self.placeholder.create_text(180, 355, text = 'Place your QR Code\nwithin the frame to Login',
-                                anchor = tkinter.CENTER, font = ('Lucida',14), justify = 'center')
+                            anchor = tkinter.CENTER, font = ('Lucida',14), justify = 'center')
         self.placeholder.configure(background = 'white', highlightbackground = 'white' )
         self.placeholder.place(x = 0, y = 0)
+
+        self.settings_logo = ImageTk.PhotoImage(Image.open('images/settings.png').resize((20,20)))
+        self.settings_button = tkinter.Button(self.window, text = ' Settings', image = self.settings_logo,
+                            compound = tkinter.LEFT, command = self.open_settings, background = 'white',
+                            borderwidth = 0, activebackground = '#abdbe3', activeforeground = 'white',
+                            font = ('Lucida', 10))
+        self.settings_button.place(x = 5, y = 5)
 
         self.qrcode_scanner_frame = tkinter.Canvas(self.window, width = 400, height = 400)
         self.qrcode_scanner_frame.place(x = 390, y = 10)
@@ -48,18 +53,89 @@ class MedbotLoginGui:
                 self.photo = ImageTk.PhotoImage(image = Image.fromarray(frame))
                 self.qrcode_scanner_frame.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
                 try:
-                    logged_in = self.medbot.login_tk(frame)
+                    self.logged_in = self.medbot.login_tk(frame)
                 except:
-                    PopupMessage.show_message(self.window, 'Login Failed', 'Invalid Credentials', timeout = 1500)
-                if(logged_in):
-                    PopupMessage.show_message(self.window, 'Login Successfully', 
+                    show_message(self.window, 'Login Failed', 'Invalid Credentials', timeout = 1500)
+                if(self.logged_in):
+                    show_message(self.window, 'Login Successfully', 
                                         'Welcome back, ' + self.medbot.current_user.name + ' !',
                                         timeout = 2000)
-                    MedbotMainWindow(self)
+                    MedbotGUIMain(self)
         self.window.after(15, self.update)
 
-class MedbotMainWindow():
-    def __init__(self, root):
+    def open_settings(self):
+        MedbotGUISettings(self)
+
+class MedbotGUISettings():
+    def __init__(self, root: MedbotGUI):
+        self.root = root
+        self.window = tkinter.Toplevel(self.root.window)
+        self.window.title('Settings')
+        self.window.geometry('400x300')
+        self.window.configure(background = 'white')
+        self.window.grab_set()
+
+        self.settings_logo = ImageTk.PhotoImage(Image.open('images/settings.png').resize((24,24)))
+        self.title_label = tkinter.Label(self.window, text = ' Settings', image = self.settings_logo,
+                            compound = tkinter.LEFT, font = ('Lucida', 16), justify = 'center',
+                            background = 'white')
+        self.title_label.place(x = 150, y = 10)
+
+        self.voice_prompt_logo = ImageTk.PhotoImage(Image.open('images/speaker.png').resize((16,16)))
+        self.voice_prompt_label = tkinter.Label(self.window, text = ' Voice Prompt', font = ('Lucida', 11),
+                            background = 'white', image = self.voice_prompt_logo, compound = tkinter. LEFT)
+        self.voice_prompt_label.place(x = 50, y = 75)
+        self.voice_prompt_value = tkinter.StringVar(self.window,
+                            'enabled' if self.root.medbot.voice_prompt_enabled == True else 'disabled')
+        tkinter.Radiobutton(self.window, text = 'Enable', variable = self.voice_prompt_value,
+                            value = 'enabled', command = self.set_voice_prompt,
+                            background = 'white').place(x = 80, y = 100)
+        tkinter.Radiobutton(self.window, text = 'Disable', variable = self.voice_prompt_value,
+                            value = 'disabled', command = self.set_voice_prompt,
+                            background = 'white').place(x = 160, y = 100)
+
+        self.voice_command_logo = ImageTk.PhotoImage(Image.open('images/microphone.png').resize((16,16)))
+        self.voice_command_label = tkinter.Label(self.window, text = ' Voice Command', font = ('Lucida', 11),
+                            background = 'white', image = self.voice_command_logo, compound = tkinter.LEFT)  
+        self.voice_command_label.place(x = 50, y = 150)
+        self.voice_command_value = tkinter.StringVar(self.window,
+                            'enabled' if self.root.medbot.voice_command_enabled == True else 'disabled')
+        tkinter.Radiobutton(self.window, text = 'Enable', variable = self.voice_command_value,
+                            value = 'enabled', command = self.set_voice_command,
+                            background = 'white').place(x = 80, y = 175)
+        tkinter.Radiobutton(self.window, text = 'Disable', variable = self.voice_command_value,
+                            value = 'disabled', command = self.set_voice_command,
+                            background = 'white').place(x = 160, y = 175)
+
+    def set_voice_prompt(self):
+        temp = self.voice_prompt_value.get()
+        if(temp == 'disabled'):
+            value = False
+        else:
+            value = True
+        self.root.medbot.set_voice_prompt_enabled(value)
+        self.save_config('voice_prompt', value)
+        print('Voice prompt set to ' + str(value))
+
+    def set_voice_command(self):
+        temp = self.voice_command_value.get()
+        if(temp == 'disabled'):
+            value = False
+        else:
+            value = True
+        self.root.medbot.set_voice_command_enabled(value)
+        self.save_config('voice_command', value)
+        print('Voice command set to ' + str(value))
+
+    def save_config(self, key, value):
+        with open('config.yml', 'r') as file:
+            config = yaml.safe_load(file)
+        config['medbot'][key] = value
+        with open('config.yml', 'w') as file:
+            yaml.dump(config, file)
+
+class MedbotGUIMain():
+    def __init__(self, root: MedbotGUI):
         self.root = root
         self.root.window.withdraw()
         self.window = tkinter.Toplevel(self.root.window)
@@ -70,20 +146,26 @@ class MedbotMainWindow():
         self.window.iconphoto(False, logo)
         self.window.configure(background = 'white')
 
-        self.body_position_check_prompted = False
+        self.operation_started = False
+        self.operation_completed = False
         self.animation_timer = 1
-        
+        self.oximeter_thread = Thread(target = self.root.medbot.start_oximeter)
+        self.bp_thread = Thread(target = self.root.medbot.start_blood_pressure_monitor)
+        self.oximeter_thread_started = False
+        self.bp_thread_started = False
+        self.printer_prompted = False
+
         self.display = tkinter.Canvas(self.window, width = 700, height = 270)
-        self.display_text = self.display.create_text(150, 140, text = 'Waiting to properly position arm.',
-                            anchor = tkinter.W, font = ('Lucida', 20))
+        self.display_text = self.display.create_text(350, 140, text = 'Initializing Please Wait',
+                            anchor = tkinter.CENTER, font = ('Lucida', 20), justify = 'center')
         self.display.place(x = 50, y = 30)
 
         self.pulse_rate_holder = tkinter.Canvas(self.window, width = 220, height = 100)
         self.pulse_rate_icon = ImageTk.PhotoImage(Image.open('images/pulse_rate.png').resize((64,64)))
         self.pulse_rate_holder.create_image(10, 18, image = self.pulse_rate_icon, anchor = tkinter.NW)
-        self.pulse_rate_holder.create_text(140, 35, text = 'Pulse Rate', anchor = tkinter.CENTER,
+        self.pulse_rate_holder.create_text(140, 40, text = 'Pulse Rate', anchor = tkinter.CENTER,
                             font = ('Lucida', 15), justify = 'center')
-        self.pulse_rate_text = self.pulse_rate_holder.create_text(130, 60, text = '-- bpm',
+        self.pulse_rate_text = self.pulse_rate_holder.create_text(135, 65, text = '-- bpm',
                             anchor = tkinter.CENTER, font = ('Lucida', 15, 'bold'), justify = 'center')
         self.pulse_rate_holder.configure(background = '#f5f7fa')
         self.pulse_rate_holder.place(x = 50, y = 320)
@@ -91,19 +173,19 @@ class MedbotMainWindow():
         self.blood_pressure_holder = tkinter.Canvas(self.window, width = 220, height = 100)
         self.blood_pressure_icon = ImageTk.PhotoImage(Image.open('images/blood_pressure.png').resize((64,64)))
         self.blood_pressure_holder.create_image(10, 18, image = self.blood_pressure_icon, anchor = tkinter.NW)
-        self.blood_pressure_holder.create_text(140, 35, text = 'Blood Pressure', anchor = tkinter.CENTER,
+        self.blood_pressure_holder.create_text(145, 40, text = 'Blood Pressure', anchor = tkinter.CENTER,
                             font = ('Lucida', 15), justify = 'center')
-        self.blood_pressure_text = self.blood_pressure_holder.create_text(130, 60, text = '--/-- mmHg',
+        self.blood_pressure_text = self.blood_pressure_holder.create_text(140, 65, text = '--/-- mmHg',
                             anchor = tkinter.CENTER, font = ('Lucida', 15, 'bold'), justify = 'center')
         self.blood_pressure_holder.configure(background = '#f5f7fa')
         self.blood_pressure_holder.place(x = 290, y = 320)
 
         self.blood_saturation_holder = tkinter.Canvas(self.window, width = 220, height = 100)
         self.blood_saturation_icon = ImageTk.PhotoImage(Image.open('images/blood_saturation.png').resize((64,64)))
-        self.blood_saturation_holder.create_image(10, 18, image = self.blood_saturation_icon, anchor = tkinter.NW)
-        self.blood_saturation_holder.create_text(140, 35, text = 'Blood Saturation', anchor = tkinter.CENTER,
+        self.blood_saturation_holder.create_image(5, 18, image = self.blood_saturation_icon, anchor = tkinter.NW)
+        self.blood_saturation_holder.create_text(140, 40, text = 'Blood Saturation', anchor = tkinter.CENTER,
                             font = ('Lucida', 15), justify = 'center')
-        self.blood_saturation_text = self.blood_saturation_holder.create_text(130, 60, text = '-- %',
+        self.blood_saturation_text = self.blood_saturation_holder.create_text(130, 65, text = '-- %',
                             anchor = tkinter.CENTER, font = ('Lucida', 15, 'bold'), justify = 'center')
         self.blood_saturation_holder.configure(background = '#f5f7fa')
         self.blood_saturation_holder.place(x = 530, y = 320)
@@ -111,23 +193,16 @@ class MedbotMainWindow():
         self.update()
 
     def update(self):
-        if(not self.body_position_check_prompted):
-            voice_prompt = Thread(target=lambda:self.root.medbot.speak('Please position your arm properly'))
-            voice_prompt.start()
-            self.body_position_check_prompted = True
-        self.change_display_text()
-        self.window.after(15, self.update)
+        # Check if body check operation hasn't start (initialize)
+        if(not self.root.medbot.body_check_started):
+            if(self.root.medbot.voice_prompt_enabled):
+                voice_prompt = Thread(target=lambda:self.root.medbot.speak('Please position your arm properly'))
+                voice_prompt.start()
+            self.display.itemconfigure(self.display_text, text = 'Starting Body Check')
+            self.root.medbot.start_body_check()
 
-    def on_close(self):
-        PopupMessage.show_message(self.window, 'Logout Successfully', 
-                    'See you later, ' + self.root.medbot.current_user.name + ' !',
-                    timeout = 3000)
-        self.root.medbot.logout()
-        self.root.window.deiconify()
-        self.window.destroy()
-
-    def change_display_text(self):
-        if(not self.body_position_check_completed):
+        # Check if body check operation is in progress
+        elif(self.root.medbot.body_check_in_progress):
             if(self.animation_timer == 1):
                 self.display.itemconfigure(self.display_text, text = 'Waiting to properly position arm .')
                 self.animation_timer = 2
@@ -137,8 +212,84 @@ class MedbotMainWindow():
             elif(self.animation_timer == 0):
                 self.display.itemconfigure(self.display_text, text = 'Waiting to properly position arm.')
                 self.animation_timer = 1
+                # For testing only, use the communication with Arduino instead
+                self.root.medbot.body_check_complete() 
             time.sleep(0.5)
-                            
-database = Database('sql.freedb.tech','freedb_medbot','freedb_medbot','ct9xVSS$$2g35s7')
-medbot = Medbot(database)
-MedbotLoginGui(medbot)
+
+        # Check if body check operation is completed but the measuring operation has not started
+        # Starts the oximeter and bp thread
+        elif(self.root.medbot.body_check_completed and not self.operation_started):
+            if(self.root.medbot.voice_prompt_enabled):
+                voice_prompt = Thread(target=lambda:self.root.medbot.speak('Measuring your vital signs. Please stay still'))
+                voice_prompt.start()
+            self.display.itemconfigure(self.display_text, text = 'Measuring your vital signs. Please stay still')
+            print(self.root.medbot.body_check_completed)
+            print(self.operation_started)
+            self.operation_started = True
+            print(self.operation_started)
+            if(not self.oximeter_thread_started):
+                self.oximeter_thread.start()
+                self.oximeter_thread_started = True
+            if(not self.bp_thread_started):
+                self.bp_thread.start()
+                self.oximeter_thread_started = True
+
+        # Check if the measuring operation threads are still alive
+        # Do some animation
+        elif(self.oximeter_thread_started and self.oximeter_thread.is_alive() and self.bp_thread_started and self.bp_thread.is_alive() and self.operation_started):
+            pass
+
+        # Check if the measuring operation thread has finished
+        # Does some variable resets for finalizing operation completion
+        elif(self.oximeter_thread_started and not self.oximeter_thread.is_alive() and self.bp_thread_started and not self.bp_thread.is_alive() and self.operation_started):
+            self.operation_completed = True
+            self.operation_started = False
+
+        # Check if operation has completed
+        # Flash the readings on to the screen and prompt user to use thermal printer or not
+        # Save reading to database
+        elif(not self.oximeter_thread.is_alive() and not self.bp_thread.is_alive() and self.operation_started and not self.printer_prompted):
+            pulse_rate = self.root.medbot.get_current_pulse_rate()
+            systolic = self.root.medbot.get_current_systolic()
+            diastolic = self.root.medbot.get_current_diastolic()
+            blood_saturation = self.root.medbot.get_current_blood_saturation()
+            self.pulse_rate_holder.itemconfigure(self.pulse_rate_text, text = str(pulse_rate) + ' bpm')
+            self.blood_pressure_holder.itemconfigure(self.blood_pressure_text, text = str(systolic) + '/' + str(diastolic) + ' mmHg')
+            self.blood_saturation_holder.itemconfigure(self.blood_saturation_text, text = str(blood_saturation) + ' %')
+            # self.root.medbot.save_current_reading()
+            self.printer_prompted = True
+
+        # Invoke printer command and logout
+        elif(self.printer_prompted):
+            response = messagebox.askyesno('Print results?','Do you want to print your readings?')
+            if(response):
+                # Call printer function here
+                pass
+            self.printer_prompted = False
+            self.on_close()
+        self.window.after(15, self.update)
+
+    def on_close(self):
+        show_message(self.window, 'Logout Successfully', 
+                            'See you later, ' + self.root.medbot.current_user.name + ' !',
+                            timeout = 3000)
+        self.root.medbot.logout()
+        self.root.window.deiconify()
+        self.window.destroy()
+
+    def askyesno_voice_command(self, title, message):
+        messagebox.askyesno(title, message)
+        response = self.root.medbot.get_voice_input(accepted_answers = ['yes','no'], 
+                            on_failure_callback = lambda:self.root.medbot.speak('I cannot understand'))
+        return response
+
+if __name__ == '__main__':
+    database = medical_robot.Database('sql.freedb.tech','freedb_medbot','freedb_medbot','ct9xVSS$$2g35s7')
+    medbot = medical_robot.Medbot(database, microphone_index = 0)
+    with open('config.yml', 'r') as file:
+        config = yaml.safe_load(file)
+    voice_prompt = config['medbot']['voice_prompt']
+    voice_command = config['medbot']['voice_command']
+    medbot.set_voice_prompt_enabled(voice_prompt)
+    medbot.set_voice_command_enabled(voice_command)
+    MedbotGUI(medbot)

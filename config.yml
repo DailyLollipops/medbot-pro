@@ -1,0 +1,3 @@
+medbot:
+  voice_command: true
+  voice_prompt: true
