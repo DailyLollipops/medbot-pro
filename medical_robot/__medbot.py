@@ -30,27 +30,31 @@ __all__ = ['Medbot']
 # Would later remove if ported on Raspberry Pi
 class Medbot:
 
-    def __init__(self, database: Database):
+    def __init__(self, database: Database, microphone_index: int = 2, camera_index: int = 0):
         '''
             Initialize a Medbot object \n
-            Must pass in a `medical_robot.Database` object. Throws an Exception otherwise
+            Must pass in a `medical_robot.Database` object. Throws an Exception otherwise \n
+            The `microphone_index` parameter can be overriden to select the microphone you
+            want in case your system has multiple microphone source Default to `2` \n
+            The `camera` index can also be set if multiple cameras are present. 
+            Default to `0`
         '''
         try:
             self.database = database
         except:
             raise Exception('Initialization Error: parameter must be of type Database')
         self.__password = bytes('MedbotPRBPM' + '\0\0\0\0\0', 'utf-8')
-        self.current_user = None,
-        self.has_user = False
-        self.qrcode_scanner = cv2.VideoCapture(0)
+        self.qrcode_scanner = cv2.VideoCapture(camera_index)
         # self.oximeter = MAX30102()
         self.recognizer = speech_recognition.Recognizer()
-        self.microphone = speech_recognition.Microphone()
+        self.microphone = speech_recognition.Microphone(device_index = microphone_index)
         self.speaker = pyttsx3.init()
         # self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
         self.printer = None
         # self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
         self.arduino = None
+        self.current_user = None,
+        self.has_user = False
         self.body_check_started = False
         self.body_check_in_progress = False
         self.body_check_completed = False
@@ -335,7 +339,7 @@ class Medbot:
         date_now = now.strftime('%Y-%m-%d %H:%M:%S')
         values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
         self.database.insert_record('readings', values)
-        
+
     def print_results(self, content: str, **settings):
         '''
             Print some text on the thermal printer \n
