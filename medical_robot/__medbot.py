@@ -45,6 +45,8 @@ class Medbot:
         self.body_check_in_progress = False
         self.body_check_completed = False
         self.listening = False
+        self.voice_prompt_enabled = True
+        self.voice_command_enabled = True
         self.current_reading = {
             'pulse_rate': None,
             'systolic': None,
@@ -281,30 +283,32 @@ class Medbot:
 
     # Decodes and return speech from the microphone to text
     def get_voice_input(self, accepted_answers = [], on_failure_callback = lambda:print('I cannot understand. Please try again')):
-        self.listening = True
-        while(self.listening):
-            try:
-                with self.microphone:
-                    self.recognizer.adjust_for_ambient_noise(self.microphone, duration = 1)
-                    print('Speak now')
-                    audio = self.recognizer.listen(self.microphone)
-                    text = self.recognizer.recognize_google(audio)
-                    text = text.lower()
-                    if(len(accepted_answers) > 0):
-                        if(text in accepted_answers):
-                            break
+        if(self.voice_command_enabled):
+            self.listening = True
+            while(self.listening):
+                try:
+                    with self.microphone:
+                        self.recognizer.adjust_for_ambient_noise(self.microphone, duration = 1)
+                        print('Speak now')
+                        audio = self.recognizer.listen(self.microphone)
+                        text = self.recognizer.recognize_google(audio)
+                        text = text.lower()
+                        if(len(accepted_answers) > 0):
+                            if(text in accepted_answers):
+                                break
+                            else:
+                                on_failure_callback()
                         else:
-                            on_failure_callback()
-                    else:
-                        break
-            except:
-                on_failure_callback()
-        return text
+                            break
+                except:
+                    on_failure_callback()
+            return text
 
     # Convert text to speech
     def speak(self, text):
-        self.speaker.say(text)
-        self.speaker.runAndWait()
+        if(self.voice_prompt_enabled):
+            self.speaker.say(text)
+            self.speaker.runAndWait()
 
     # Set the speaker properties to change voice, rate or volume
     # Voice option can only be 'male' or 'female' and defaults to 'male'
@@ -349,6 +353,20 @@ class Medbot:
     # Returns an int(blood saturation)
     def get_current_blood_saturation(self):
         return self.current_reading['blood_saturation']
+
+    # Sets the voice prompt to enabled or disabled
+    def set_voice_prompt_enabled(self, value):
+        if(type(value) is bool):
+            self.voice_prompt_enabled = value
+        else:
+            raise Exception('Incorrect value')
+
+    # Sets the voice commands to enabled or disabled
+    def set_voice_command_enabled(self, value):
+        if(type(value) is bool):
+            self.voice_command_enabled = value
+        else:
+            raise Exception('Incorrect value')
 
     ########################################################
     #              Tkinter Support Functions               #
