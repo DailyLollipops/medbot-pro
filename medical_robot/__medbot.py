@@ -311,7 +311,8 @@ class Medbot:
     
     def save_reading(self, pulse_rate: int, systolic: int, diastolic: int, blood_saturation: int):
         '''
-            Save readings to the database
+            Save readings to the database \n
+            Can be used to directly store specific readings to the database
         '''
         blood_pressure = diastolic + ((systolic - diastolic)/3)
         now = datetime.now()
@@ -319,6 +320,22 @@ class Medbot:
         values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
         self.database.insert_record('readings', values)
 
+    def save_current_readings(self):
+        '''
+            Save the current cached readings to the database \n
+            Does not reset the cached readings so multiple call to this
+            function may lead to duplication in the database
+        '''
+        pulse_rate = self.current_reading['pulse_rate']
+        systolic = self.current_reading['systolic']
+        diastolic = self.current_reading['diastolic']
+        blood_saturation = self.current_reading['blood_saturation']
+        blood_pressure = diastolic + ((systolic - diastolic)/3)
+        now = datetime.now()
+        date_now = now.strftime('%Y-%m-%d %H:%M:%S')
+        values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
+        self.database.insert_record('readings', values)
+        
     def print_results(self, content: str, **settings):
         '''
             Print some text on the thermal printer \n
