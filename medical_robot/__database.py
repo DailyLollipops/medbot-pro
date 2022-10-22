@@ -15,6 +15,10 @@ __all__ = ['Database']
 class Database:
     
     def __init__(self, host: str, database: str, user: str, password: str):
+        '''
+            Initialize a Database object using the supplied credentials \n
+            Throws an Exception if connection to the database is unsuccessfull
+        '''
         self.host = host
         self.database = database
         self.user = user
@@ -27,8 +31,11 @@ class Database:
         except:
             raise Exception('Error connecting to database')
 
-    # Get user info using an User object
     def get_user_info(self, user: User):
+        '''
+            Get user info from a User object \n
+            Querries the `user.id` in the database and return the user's info
+        '''
         query = "select * from users where id =%s"
         id = (user.id,)
         cursor = self.connection.cursor()
@@ -42,6 +49,9 @@ class Database:
 
     # Get user info using user id(int)
     def get_user_info_by_id(self, user_id: int):
+        '''
+            Get user info using `user_id` from the database
+        '''
         query = "select * from users where id =%s"
         id = (user_id,)
         cursor = self.connection.cursor()
@@ -53,16 +63,19 @@ class Database:
         else:
             raise Exception('User does not exist in the current database')
 
-    # Parse birthday to age now
-    # Returns an int
     def __get_age(self, birthday):
+        '''
+            Parse `birthday` and returns the `age` now
+        '''
         birthday = datetime.strptime(str(birthday), "%Y-%m-%d").date()
         today = date.today()  
         age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
         return age
 
-    # Returns available insertable columns
     def __get_columns_name(self, table):
+        '''
+            Returns available editable columns from a `table`
+        '''
         cursor = self.connection.cursor(dictionary = True, buffered = True)
         cursor.execute('SELECT * FROM ' + table)
         sample = cursor.fetchone()
@@ -73,8 +86,10 @@ class Database:
         cursor.close()
         return columns_name
 
-    # Verify and change user authenticated property to true
     def verify(self, user: User):
+        '''
+            Verify and change user authenticated property to true
+        '''
         password_bytes = user.password.encode('utf-8')
         record = self.get_user_info(user)
         stored_password = record[10].encode('utf-8')
@@ -90,6 +105,11 @@ class Database:
         
     # Returns an authenticated User object
     def verify_by_credentials(self, user_id: int, user_password: str):
+        '''
+            Create and return an authenticated User object if credential
+            supplied is valid \n
+            Returns `False` if credentials are not valid
+        '''
         password_bytes = user_password.encode('utf-8')
         record = self.get_user_info_by_id(user_id)
         stored_password = record[10].encode('utf-8')
@@ -104,8 +124,10 @@ class Database:
         else:
             return False
 
-    # Insert record to a table in the database
     def insert_record(self, table: str, values: tuple or list):
+        '''
+            Insert record to a table in the database
+        '''
         columns = self.__get_columns_name(table)
         cursor = self.connection.cursor()
         query = f'''INSERT INTO {table}({columns}) VALUES ({'%s, ' * (len(values)-1)}%s)'''

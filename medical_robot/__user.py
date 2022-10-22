@@ -8,6 +8,9 @@ __all__ = ['User']
 class User:
 
     def __init__(self, id: int, password: str):
+        '''
+            Initialize a User object instance.
+        '''
         self.id = id
         self.password = password
         self.authenticated = False
@@ -15,12 +18,16 @@ class User:
         self.age = None
         self.gender = None
 
-    # Returns an int(ID)
     def get_id(self):
+        '''
+            Returns the `id` of the user
+        '''
         return self.id
 
-    # Returns a dictionary of user info
     def get_info(self):
+        '''
+            Returns a dictionary of user info
+        '''
         info = {
             'id': self.id,
             'name': self.name,
@@ -30,6 +37,8 @@ class User:
         }
         return info
 
-    # Returns true if authenticated
     def is_authenticated(self):
+        '''
+            Returns `True` if authenticated otherwise `False`
+        '''
         return self.authenticated

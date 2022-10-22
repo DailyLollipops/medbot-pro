@@ -31,6 +31,10 @@ __all__ = ['Medbot']
 class Medbot:
 
     def __init__(self, database: Database):
+        '''
+            Initialize a Medbot object \n
+            Must pass in a `medical_robot.Database` object. Throws an Exception otherwise
+        '''
         try:
             self.database = database
         except:
@@ -60,8 +64,10 @@ class Medbot:
             'blood_saturation': None
         }
 
-    # Returns the decoded QR Code message
     def __decodeframe(self, image):
+        '''
+            Returns the decoded QR Code message
+        '''
         trans_img = cv2.cvtColor(image,0)
         qrcode = decode(trans_img)
         for obj in qrcode:
@@ -76,20 +82,26 @@ class Medbot:
             data = obj.data.decode("utf-8")
             return data
 
-    # Generates an encrypted text from the user's ID and password
     def __encrypt(self, decrypted):
+        '''
+            Generates an encrypted text from the user's ID and password
+        '''
         cipher = AES.new(self.__password,AES.MODE_ECB)
         encrypted = b64encode(cipher.encrypt(pad(decrypted.encode(),16))).decode()
         return encrypted
 
-    # Decrypts the decoded QR Code text that includes user's ID and password
     def __decrypt(self, encrypted):
+        '''
+           Decrypts the decoded QR Code text that includes user's ID and password 
+        '''
         cipher = AES.new(self.__password, AES.MODE_ECB)
         decrypted = unpad(cipher.decrypt(b64decode(encrypted.encode())),16).decode()
         return decrypted
 
-    # Check if QR Code is a valid Medbot QR Code
     def __verify_qrcode(self, qrdata):
+        '''
+            Check if QR Code is a valid Medbot QR Code
+        '''
         if('Medbot' in qrdata):
             credentials = qrdata.split(':')
             id = credentials[1]
@@ -97,9 +109,11 @@ class Medbot:
             return id, password
         else:
             raise Exception('QRCode is not a valid one')
-
-    # Opens an OpenCV window and scans QR Code      
+ 
     def __scan_qrcode(self):
+        '''
+            Opens an OpenCV window and scans QR Code   
+        '''
         while True:
             ret, frame = self.qrcode_scanner.read()
             encrypted_data = self.__decodeframe(frame)
@@ -111,9 +125,13 @@ class Medbot:
         cv2.destroyAllWindows()
         return decrypted_data
 
-    # Sets the current user based on the credentials found on database
-    # Return a User object upon success
     def login(self):
+        '''
+            Sets the current user based on the credentials found on database \n
+            Return a User object upon success otherwise throws an Exception if
+            credentials are incorrect \n
+            Credential checkings are based on the database of the object
+        '''
         qrdata = self.__scan_qrcode()
         id, password = self.__verify_qrcode(qrdata)
         user = User(id, password)
@@ -126,15 +144,19 @@ class Medbot:
             del user
             raise Exception('Invalid Credentials')
 
-    # Clears the current user and reset the object
     def logout(self):
+        '''
+            Clears the current user and reset the object
+        '''
         self.current_user.authenticated = False
         self.current_user = None
         self.has_user = False
         self.reset()
 
-    # Reset the object without logging out
     def reset(self):
+        '''
+            Clears all body checks history and the cached current readings
+        '''
         self.body_check_completed = False
         self.body_check_started = False
         self.body_check_in_progress = False
@@ -145,16 +167,22 @@ class Medbot:
             'blood_saturation': None
         }
 
-    # Send command to the Arduino to start body check
-    # Also includes the body lock operation invoked in the Arduino
     def start_body_check(self):
+        '''
+            Send command to the Arduino to start body check. \n
+            Also includes the body lock operation invoked in the Arduino
+        '''
         command = 'Start Body Check'
         # self.arduino.write(command.encode())
         self.body_check_started = True
         self.body_check_in_progress = True
 
-    # Constantly listen to Arduino to send a body check completed response
     def wait_body_check(self):
+        '''
+            Constantly listen to Arduino to send a body check completed response \n
+            Returns `True` if body check is completed \n
+            Throws an Exception if body check is not started
+        '''
         if(self.body_check_in_progress):
             while(self.body_check_in_progress):
                 if(self.arduino.inWaiting > 0):
@@ -167,14 +195,22 @@ class Medbot:
         else:
             raise Exception('Body check is not started')
 
-    # Send command to the Arduino to immediately stop the body check
     def stop_body_check(self):
+        '''
+            Send command to the Arduino to immediately stop the body check
+        '''
         command = 'Stop Body Check'
         self.arduino.write(command.encode())
         self.body_check_in_progress = False
     
-    # Return the body check status
     def get_body_check_status(self):
+        '''
+            Returns a string indicating the body check status \n
+            Possible returns:
+            - `Not started`
+            - `Ongoing`
+            - `Completed`
+        '''
         if(not self.body_check_started and not self.body_check_completed):
             return 'Not started'
         elif(self.body_check_in_progress):
@@ -182,26 +218,38 @@ class Medbot:
         elif(self.body_check_completed):
             return 'Completed'
 
-    # Send command to the Arduino to commence body release operation
-    # Only available if body check is completed
     def body_release(self):
+        '''
+            Send command to the Arduino to commence body release operation \n
+            Only available if body check is completed
+        '''
         if(self.body_check_completed):
             command = 'Body Release'
             self.arduino.write(command.encode())
         else:
             raise Exception('Body check is not completed or not started yet')
-    
-    # Get the Arduino response if available
-    # Possible response('Body Check Completed','Sanitize Completed,)
+
     def get_arduino_response(self):
+        '''
+            Get the Arduino response if available \n
+            Possible response:
+            - `Body Check Completed`
+            - `Sanitize Completed`
+        '''
         if(self.arduino.inWaiting > 0):
             response = self.arduino.readline()
             return response
 
-    # Send command to arduino
-    # Can be used to explicitly invoke Arduino operation without calling specific functions
-    # Possible commands('Start Body Check','Stop Body Check', 'Start Sanitize', 'Body Release')
     def send_command(self, command: str):
+        '''
+            Send command to arduino. 
+            Can be used to explicitly invoke Arduino operation without calling specific functions \n
+            Possible commands:
+            - `Start Body Check`
+            - `Stop Body Check`
+            - `Start Sanitize`
+            - `Body Release`
+        '''
         commands = ['Start Body Check', 'Stop Body Check', 'Start Sanitize', 'Body Release']
         if(command in commands):
             if(command == 'Start Body Check'):
@@ -215,10 +263,11 @@ class Medbot:
         else:
             raise Exception('Unknown command')
 
-    # Start the MAX30102 oximeter
-    # This function gets 5 valid measurements and returns it's average
-    # Returns and sets pulse rate and blood saturation
     def start_oximeter(self):
+        '''
+            Start the MAX30102 oximeter and gets 5 valid measurements and returns it's average \n
+            Returns and cache pulse rate and blood saturation
+        '''
         average_pulse_rate = 120
         average_blood_saturation = 95
         # pulse_rate_samples = []
@@ -239,12 +288,14 @@ class Medbot:
         self.current_reading['blood_saturation'] = average_blood_saturation
         return average_pulse_rate, average_blood_saturation
 
-    # Send command to the Arduino to press the start button on the blood pressure monitor
-    # It then fetches the last measurement
-    # Returns and sets the systolic and diastolic
-    # Note: if the you wants to get the pulse rate from the bpm, you need to comment out
-    #       the pulse rate lines in start_oximeter to prevent possible conflicts
     def start_blood_pressure_monitor(self):
+        '''
+            Send command to the Arduino to press the start button on the blood pressure monitor
+            and fetches the last measurement \n
+            Returns and cache systolic and diastolic \n
+            `Note:` if the you wants to get the pulse rate from the bpm, you need to comment out
+            the pulse rate lines in start_oximeter to prevent possible conflicts
+        '''
         # Add button press for blood_pressure_monitor
         # Then wait for some second to start BLE
         blood_pressure_monitor = Microlife_BTLE()
@@ -258,18 +309,25 @@ class Medbot:
         # self.current_reading['pulse_rate'] = pulse_rate
         return systolic, diastolic
     
-    # Saves current reading to the database
     def save_reading(self, pulse_rate: int, systolic: int, diastolic: int, blood_saturation: int):
+        '''
+            Save readings to the database
+        '''
         blood_pressure = diastolic + ((systolic - diastolic)/3)
         now = datetime.now()
         date_now = now.strftime('%Y-%m-%d %H:%M:%S')
         values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
         self.database.insert_record('readings', values)
 
-    # Print some text on the thermal printer
-    # Can pass in settings kwargs to define the settings for the thermal printer
-    # Refer to the escpos documentation for this
     def print_results(self, content: str, **settings):
+        '''
+            Print some text on the thermal printer \n
+            Can pass in settings kwargs to define the settings for the thermal printer. 
+            Refer to the [python-ecspos docs](https://python-escpos.readthedocs.io/en/latest/user/methods.html)
+            for possible settings \n
+            Always returns `True` and throws Exception if paper feed is out
+
+        '''
         self.printer.set(settings)
         success = False
         while(not success):
@@ -287,8 +345,16 @@ class Medbot:
                 pass
         return success
 
-    # Decodes and return speech from the microphone to text
     def get_voice_input(self, accepted_answers: array = [], on_failure_callback: FunctionType = lambda:print('I cannot understand. Please try again')):
+        '''
+            Get voice stream from the microphone and tries to decode it\n
+            Only process if `voice_command_enabled` property is `True` \n
+            The `accepted_answers` parameter can be used to filter out any answers
+            and immediately get voice stream if decoded text is not in the list \n
+            The `on_failure_callback` will be called in case of Request or Value
+            Error Exceptions. If `accepted_answers` was given, this function will
+            also be called if the decoded text is not in the list
+        '''
         if(not isinstance(on_failure_callback, FunctionType)):
             raise Exception('On Failure Callback must be a function')
         if(self.voice_command_enabled):
@@ -312,15 +378,20 @@ class Medbot:
                     on_failure_callback()
             return text
 
-    # Convert text to speech
     def speak(self, text: str):
+        '''
+            Converts text to speech \n
+            Only available if `voice_prompt_enabled` property is `True`
+        '''
         if(self.voice_prompt_enabled):
             self.speaker.say(text)
             self.speaker.runAndWait()
 
-    # Set the speaker properties to change voice, rate or volume
-    # Voice option can only be 'male' or 'female' and defaults to 'male'
     def set_speaker_properties(self, rate: int = 100, volume: float = 1.0, voice: str = 'male'):
+        '''
+            Set the speaker properties to change voice, rate or volume \n
+            Voice option can only be `male` or `female`. Defaults to `male`  
+        '''
         self.speaker.setProperty('rate', rate)
         self.speaker.setProperty('volume', volume)
         voices = self.speaker.getProperty('voices')
@@ -329,48 +400,68 @@ class Medbot:
         else:
             self.speaker.setProperty('voice', voices[0].id)
 
-    # Send command to the Arduino to start sanitizing operation
     def start_sanitizer(self):
+        '''
+            Send command to the Arduino to start sanitizing operation
+        '''
         command = 'Start Sanitizer'
         self.arduino.write(command.encode())
 
-    # Returns a User object from the current user
     def get_current_user(self):
+        '''
+            Returns the current user as a User object
+        '''
         try:
             if(self.current_user[0] is None):
                 return None
         except:
             return self.current_user
 
-    # Return a dictionary of current readings
     def get_current_reading(self):
+        '''
+            Return a dictionary of current cached readings
+        '''
         return self.current_reading
 
-    # Returns an int(pulse rate)
     def get_current_pulse_rate(self):
+        '''
+            Return the current cached `pulse_rate`
+        '''
         return self.current_reading['pulse_rate']
-
-    # Returns an int(systolic)    
+  
     def get_current_systolic(self):
+        '''
+            Return the current cached `systolic`
+        '''
         return self.current_reading['systolic']
 
-    # Returns an int(diastolic)
     def get_current_diastolic(self):
+        '''
+            Return the current cached `diastolic`
+        '''
         return self.current_reading['diastolic']
 
-    # Returns an int(blood saturation)
     def get_current_blood_saturation(self):
+        '''
+            Return the current cached `blood_saturation`
+        '''
         return self.current_reading['blood_saturation']
 
-    # Sets the voice prompt to enabled or disabled
     def set_voice_prompt_enabled(self, value: bool):
+        '''
+            Sets the `voice_prompt_enabled` property \n
+            Value can only be `boolean`
+        '''
         if(type(value) is bool):
             self.voice_prompt_enabled = value
         else:
             raise Exception('Incorrect value')
 
-    # Sets the voice commands to enabled or disabled
     def set_voice_command_enabled(self, value: bool):
+        '''
+            Sets the `voice_command_enabled` property \n
+            Value can only be `boolean`
+        '''
         if(type(value) is bool):
             self.voice_command_enabled = value
         else:
@@ -382,8 +473,10 @@ class Medbot:
 
     # Essential functions that remove the looping to prevent blocking on GUIs
 
-    # returns an image frame from an OpenCV instance
     def get_qrcode_scanner_frame(self):
+        '''
+            Returns an image frame from an OpenCV instance
+        '''
         if self.qrcode_scanner.isOpened():
             ret, frame = self.qrcode_scanner.read()
             if ret:
@@ -393,8 +486,10 @@ class Medbot:
         else:
             return (ret, None)
 
-    # Login user from a frame object
     def login_tk(self, frame):
+        '''
+            Try to verify/login using a QR Code present in the frame object
+        '''
         encrypted_data = self.__decodeframe(frame)
         decrypted_data = ''
         if(encrypted_data != None):
@@ -414,7 +509,9 @@ class Medbot:
     #                  Debugging Functions                 #
     ########################################################
 
-    # Forcefully invoke body check as completed
     def body_check_complete(self):
+        '''
+            Forcefully invoke `body_check_completed` as `True`
+        '''
         self.body_check_completed = True
         self.body_check_in_progress = False
