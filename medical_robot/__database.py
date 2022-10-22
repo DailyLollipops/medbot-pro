@@ -14,7 +14,7 @@ __all__ = ['Database']
 # medbot to read and store data
 class Database:
     
-    def __init__(self, host, database, user, password):
+    def __init__(self, host: str, database: str, user: str, password: str):
         self.host = host
         self.database = database
         self.user = user
@@ -28,7 +28,7 @@ class Database:
             raise Exception('Error connecting to database')
 
     # Get user info using an User object
-    def get_user_info(self, user):
+    def get_user_info(self, user: User):
         query = "select * from users where id =%s"
         id = (user.id,)
         cursor = self.connection.cursor()
@@ -41,7 +41,7 @@ class Database:
             raise Exception('User does not exist in the current database')
 
     # Get user info using user id(int)
-    def get_user_info_by_id(self, user_id):
+    def get_user_info_by_id(self, user_id: int):
         query = "select * from users where id =%s"
         id = (user_id,)
         cursor = self.connection.cursor()
@@ -74,7 +74,7 @@ class Database:
         return columns_name
 
     # Verify and change user authenticated property to true
-    def verify(self, user):
+    def verify(self, user: User):
         password_bytes = user.password.encode('utf-8')
         record = self.get_user_info(user)
         stored_password = record[10].encode('utf-8')
@@ -89,7 +89,7 @@ class Database:
             return False
         
     # Returns an authenticated User object
-    def verify_by_credentials(self, user_id, user_password):
+    def verify_by_credentials(self, user_id: int, user_password: str):
         password_bytes = user_password.encode('utf-8')
         record = self.get_user_info_by_id(user_id)
         stored_password = record[10].encode('utf-8')
@@ -105,7 +105,7 @@ class Database:
             return False
 
     # Insert record to a table in the database
-    def insert_record(self, table, values):
+    def insert_record(self, table: str, values: tuple or list):
         columns = self.__get_columns_name(table)
         cursor = self.connection.cursor()
         query = f'''INSERT INTO {table}({columns}) VALUES ({'%s, ' * (len(values)-1)}%s)'''

@@ -1,4 +1,6 @@
+from array import array
 from .__user import User
+from .__database import Database
 from pyzbar.pyzbar import decode
 from Crypto.Util.Padding import pad
 from Crypto.Util.Padding import unpad
@@ -10,9 +12,10 @@ from datetime import datetime
 # from .__max30102 import MAX30102
 from .__bp3gy12n import Microlife_BTLE
 from serial import Serial
+from .__utility import *
+from types import FunctionType
 import cv2
 import numpy
-from .__utility import *
 import speech_recognition
 import pyttsx3
 
@@ -27,8 +30,11 @@ __all__ = ['Medbot']
 # Would later remove if ported on Raspberry Pi
 class Medbot:
 
-    def __init__(self, database):
-        self.database = database
+    def __init__(self, database: Database):
+        try:
+            self.database = database
+        except:
+            raise Exception('Initialization Error: parameter must be of type Database')
         self.__password = bytes('MedbotPRBPM' + '\0\0\0\0\0', 'utf-8')
         self.current_user = None,
         self.has_user = False
@@ -195,7 +201,7 @@ class Medbot:
     # Send command to arduino
     # Can be used to explicitly invoke Arduino operation without calling specific functions
     # Possible commands('Start Body Check','Stop Body Check', 'Start Sanitize', 'Body Release')
-    def send_command(self, command):
+    def send_command(self, command: str):
         commands = ['Start Body Check', 'Stop Body Check', 'Start Sanitize', 'Body Release']
         if(command in commands):
             if(command == 'Start Body Check'):
@@ -253,7 +259,7 @@ class Medbot:
         return systolic, diastolic
     
     # Saves current reading to the database
-    def save_reading(self,pulse_rate, systolic, diastolic, blood_saturation):
+    def save_reading(self, pulse_rate: int, systolic: int, diastolic: int, blood_saturation: int):
         blood_pressure = diastolic + ((systolic - diastolic)/3)
         now = datetime.now()
         date_now = now.strftime('%Y-%m-%d %H:%M:%S')
@@ -263,7 +269,7 @@ class Medbot:
     # Print some text on the thermal printer
     # Can pass in settings kwargs to define the settings for the thermal printer
     # Refer to the escpos documentation for this
-    def print_results(self, content, **settings):
+    def print_results(self, content: str, **settings):
         self.printer.set(settings)
         success = False
         while(not success):
@@ -282,7 +288,9 @@ class Medbot:
         return success
 
     # Decodes and return speech from the microphone to text
-    def get_voice_input(self, accepted_answers = [], on_failure_callback = lambda:print('I cannot understand. Please try again')):
+    def get_voice_input(self, accepted_answers: array = [], on_failure_callback: FunctionType = lambda:print('I cannot understand. Please try again')):
+        if(not isinstance(on_failure_callback, FunctionType)):
+            raise Exception('On Failure Callback must be a function')
         if(self.voice_command_enabled):
             self.listening = True
             while(self.listening):
@@ -305,14 +313,14 @@ class Medbot:
             return text
 
     # Convert text to speech
-    def speak(self, text):
+    def speak(self, text: str):
         if(self.voice_prompt_enabled):
             self.speaker.say(text)
             self.speaker.runAndWait()
 
     # Set the speaker properties to change voice, rate or volume
     # Voice option can only be 'male' or 'female' and defaults to 'male'
-    def set_speaker_properties(self, rate=100, volume=1.0, voice='male'):
+    def set_speaker_properties(self, rate: int = 100, volume: float = 1.0, voice: str = 'male'):
         self.speaker.setProperty('rate', rate)
         self.speaker.setProperty('volume', volume)
         voices = self.speaker.getProperty('voices')
@@ -355,14 +363,14 @@ class Medbot:
         return self.current_reading['blood_saturation']
 
     # Sets the voice prompt to enabled or disabled
-    def set_voice_prompt_enabled(self, value):
+    def set_voice_prompt_enabled(self, value: bool):
         if(type(value) is bool):
             self.voice_prompt_enabled = value
         else:
             raise Exception('Incorrect value')
 
     # Sets the voice commands to enabled or disabled
-    def set_voice_command_enabled(self, value):
+    def set_voice_command_enabled(self, value: bool):
         if(type(value) is bool):
             self.voice_command_enabled = value
         else:

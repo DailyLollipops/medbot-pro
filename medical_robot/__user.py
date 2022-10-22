@@ -7,7 +7,7 @@ __all__ = ['User']
 # A user object that a Medbot and Database object returns after successful login
 class User:
 
-    def __init__(self, id, password):
+    def __init__(self, id: int, password: str):
         self.id = id
         self.password = password
         self.authenticated = False
