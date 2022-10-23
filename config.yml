@@ -1,3 +1,9 @@
 medbot:
-  voice_command: true
-  voice_prompt: true
+  settings:
+    voice_command: true
+    voice_prompt: true
+  database:
+    host: sql.freedb.tech
+    database: freedb_medbot
+    user: freedb_medbot
+    password: p5CdUCY6w7!*Eg?

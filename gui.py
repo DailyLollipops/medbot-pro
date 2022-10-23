@@ -130,7 +130,7 @@ class MedbotGUISettings():
     def save_config(self, key, value):
         with open('config.yml', 'r') as file:
             config = yaml.safe_load(file)
-        config['medbot'][key] = value
+        config['medbot']['settings'][key] = value
         with open('config.yml', 'w') as file:
             yaml.dump(config, file)
 
@@ -284,12 +284,16 @@ class MedbotGUIMain():
         return response
 
 if __name__ == '__main__':
-    database = medical_robot.Database('sql.freedb.tech','freedb_medbot','freedb_medbot','ct9xVSS$$2g35s7')
-    medbot = medical_robot.Medbot(database, microphone_index = 0)
     with open('config.yml', 'r') as file:
         config = yaml.safe_load(file)
-    voice_prompt = config['medbot']['voice_prompt']
-    voice_command = config['medbot']['voice_command']
+    database_host = config['medbot']['database']['host']
+    database = config['medbot']['database']['database']
+    database_user = config['medbot']['database']['user']
+    database_password = config['medbot']['database']['password']
+    voice_prompt = config['medbot']['settings']['voice_prompt']
+    voice_command = config['medbot']['settings']['voice_command']
+    database = medical_robot.Database(database_host,database,database_user,database_password)
+    medbot = medical_robot.Medbot(database, microphone_index = 0)
     medbot.set_voice_prompt_enabled(voice_prompt)
     medbot.set_voice_command_enabled(voice_command)
     MedbotGUI(medbot)
