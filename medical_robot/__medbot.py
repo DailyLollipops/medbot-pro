@@ -328,8 +328,13 @@ class Medbot:
         '''
             Save the current cached readings to the database \n
             Does not reset the cached readings so multiple call to this
-            function may lead to duplication in the database
+            function may lead to duplication in the database. \n
+            Throws an exception if one of the indicators does not have
+            value
         '''
+        for key, value in self.current_reading:
+            if(value is None):
+                raise Exception(str(key) + 'is missing')
         pulse_rate = self.current_reading['pulse_rate']
         systolic = self.current_reading['systolic']
         diastolic = self.current_reading['diastolic']
