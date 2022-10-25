@@ -38,7 +38,7 @@ class Database:
         '''
         query = "select * from users where id =%s"
         id = (user.id,)
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(dictionary = True)
         cursor.execute(query, id)
         record = cursor.fetchone()
         cursor.close()
@@ -54,7 +54,7 @@ class Database:
         '''
         query = "select * from users where id =%s"
         id = (user_id,)
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(dictionary = True)
         cursor.execute(query, id)
         record = cursor.fetchone()
         cursor.close()
@@ -92,13 +92,13 @@ class Database:
         '''
         password_bytes = user.password.encode('utf-8')
         record = self.get_user_info(user)
-        stored_password = record[10].encode('utf-8')
+        stored_password = record['password'].encode('utf-8')
         result = bcrypt.checkpw(password_bytes, stored_password)
         if(result):
             user.authenticated = True
-            user.name = record[1]
-            user.age = self.__get_age(record[2])
-            user.gender = record[3]
+            user.name = record['name']
+            user.age = self.__get_age(record['birthday'])
+            user.gender = record['gender']
             return True
         else:
             return False
