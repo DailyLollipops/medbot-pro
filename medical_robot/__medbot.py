@@ -55,6 +55,7 @@ class Medbot:
         # self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
         self.arduino = None
         self.start_blood_pressure_monitor_delay = 10
+        self.pulse_rate_from_bpm = False
         self.current_user = None,
         self.has_user = False
         self.body_check_started = False
@@ -268,13 +269,14 @@ class Medbot:
     def start_oximeter(self):
         '''
             Start the MAX30102 oximeter and gets 5 valid measurements and returns it's average \n
-            Returns and cache pulse rate and blood saturation
+            Returns and cache pulse rate and blood saturation on default. If `pulse_rate_from_bpm
+            is set to `True` returns only blood saturation
         '''
         average_pulse_rate = 120
         average_blood_saturation = 95
-        # pulse_rate_samples = []
-        # blood_saturation_samples = []
-        # count = 0
+        pulse_rate_samples = []
+        blood_saturation_samples = []
+        count = 0
         # while(True):
         #     red, ir = self.oximeter.read_sequential()
         #     pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = utility.calc_hr_and_spo2(ir[:100], red[:100])
@@ -284,19 +286,24 @@ class Medbot:
         #         count = count + 1
         #     if(count > 5):
         #         break
-        # average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
         # average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
-        self.current_reading['pulse_rate'] = average_pulse_rate
         self.current_reading['blood_saturation'] = average_blood_saturation
-        return average_pulse_rate, average_blood_saturation
+        if(not self.pulse_rate_from_bpm):
+            # average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
+            self.current_reading['pulse_rate'] = average_pulse_rate
+            return average_pulse_rate, average_blood_saturation
+        else:
+            return average_blood_saturation
 
     def start_blood_pressure_monitor(self):
         '''
             Send command to the Arduino to press the start button on the blood pressure monitor
             and fetches the last measurement \n
-            Returns and cache systolic and diastolic \n
-            `Note:` if the you wants to get the pulse rate from the bpm, you need to comment out
-            the pulse rate lines in start_oximeter to prevent possible conflicts
+            Returns and cache systolic and diastolic if `pulse_rate_from_bpm` is `False
+            otherwise returns and cache systolic, diastolic and pulse rate\n
+            `Note:` if the you wants to get the pulse rate from the bpm, you need to set the
+            `pulse_rate_from_bpm` property to true by direct or by calling
+            `set_pulse_rate_from_bpm(True)`.
         '''
         self.arduino.write('9', 'utf-8')
         time.sleep(self.start_blood_pressure_monitor_delay)
@@ -305,11 +312,14 @@ class Medbot:
         latest_measurement = blood_pressure_monitor.get_measurements()[-1]
         systolic = latest_measurement[1]
         diastolic = latest_measurement[2]
-        # pulse_rate = latest_measurement[3]
         self.current_reading['systolic'] = systolic
         self.current_reading['diastolic'] = diastolic
-        # self.current_reading['pulse_rate'] = pulse_rate
-        return systolic, diastolic
+        if(self.pulse_rate_from_bpm):
+            pulse_rate = latest_measurement[3]
+            self.current_reading['pulse_rate'] = pulse_rate
+            return systolic, diastolic, pulse_rate
+        else:
+            return systolic, diastolic
     
     def save_reading(self, pulse_rate: int, systolic: int, diastolic: int, blood_saturation: int):
         '''
@@ -490,6 +500,9 @@ class Medbot:
             self.voice_command_enabled = value
         else:
             raise Exception('Incorrect value')
+
+    def set_pulse_rate_from_bp(self, value: bool):
+        self.pulse_rate_from_bpm = value
 
     ########################################################
     #              Tkinter Support Functions               #
