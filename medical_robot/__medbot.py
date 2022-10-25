@@ -18,6 +18,7 @@ import cv2
 import numpy
 import speech_recognition
 import pyttsx3
+import time
 
 __all__ = ['Medbot']
 
@@ -53,6 +54,7 @@ class Medbot:
         self.printer = None
         # self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
         self.arduino = None
+        self.start_blood_pressure_monitor_delay = 10
         self.current_user = None,
         self.has_user = False
         self.body_check_started = False
@@ -176,8 +178,7 @@ class Medbot:
             Send command to the Arduino to start body check. \n
             Also includes the body lock operation invoked in the Arduino
         '''
-        command = 'Start Body Check'
-        # self.arduino.write(command.encode())
+        self.arduino.write(bytes('0', 'utf-8'))
         self.body_check_started = True
         self.body_check_in_progress = True
 
@@ -203,8 +204,7 @@ class Medbot:
         '''
             Send command to the Arduino to immediately stop the body check
         '''
-        command = 'Stop Body Check'
-        self.arduino.write(command.encode())
+        self.arduino.write(bytes('1', 'utf-8'))
         self.body_check_in_progress = False
     
     def get_body_check_status(self):
@@ -228,42 +228,40 @@ class Medbot:
             Only available if body check is completed
         '''
         if(self.body_check_completed):
-            command = 'Body Release'
-            self.arduino.write(command.encode())
+            self.arduino.write(bytes('3', 'utf-8'))
         else:
             raise Exception('Body check is not completed or not started yet')
 
-    def get_arduino_response(self):
+    def get_arduino_response(self, return_string: bool = False):
         '''
             Get the Arduino response if available \n
             Possible response:
-            - `Body Check Completed`
-            - `Sanitize Completed`
+            - `0` Body Check Completed
+            - `1` Sanitize Completed`
         '''
-        if(self.arduino.inWaiting > 0):
-            response = self.arduino.readline()
+        response = self.arduino.readline().decode()
+        if(return_string):
+            if(response == 0):
+                return 'Body Check Completed'
+            elif(response == 1):
+                return 'Sanitize Completed'
+        else:
             return response
 
-    def send_command(self, command: str):
+    def send_command(self, command: int):
         '''
             Send command to arduino. 
             Can be used to explicitly invoke Arduino operation without calling specific functions \n
             Possible commands:
-            - `Start Body Check`
-            - `Stop Body Check`
-            - `Start Sanitize`
-            - `Body Release`
+            - `0` Start Body Check
+            - `1` Stop Body Check
+            - `2` Get Body Check Status
+            - `3` Body Release
+            - `4` Start Sanitize
         '''
-        commands = ['Start Body Check', 'Stop Body Check', 'Start Sanitize', 'Body Release']
+        commands = [0, 1, 2, 3]
         if(command in commands):
-            if(command == 'Start Body Check'):
-                self.start_body_position_check()
-            elif(command == 'Stop Body Check'):
-                self.stop_body_position_check()
-            elif(command == 'Body Release'):
-                self.body_release()
-            elif(command == 'Start Sanitize'):
-                self.start_sanitizer()
+            self.arduino.write(bytes(str(command), 'utf-8'))
         else:
             raise Exception('Unknown command')
 
@@ -300,8 +298,8 @@ class Medbot:
             `Note:` if the you wants to get the pulse rate from the bpm, you need to comment out
             the pulse rate lines in start_oximeter to prevent possible conflicts
         '''
-        # Add button press for blood_pressure_monitor
-        # Then wait for some second to start BLE
+        self.arduino.write('9', 'utf-8')
+        time.sleep(self.start_blood_pressure_monitor_delay)
         blood_pressure_monitor = Microlife_BTLE()
         blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)
         latest_measurement = blood_pressure_monitor.get_measurements()[-1]
