@@ -454,7 +454,7 @@ class Medbot:
         values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
         self.database.insert_record('readings', values)
 
-    def print_results(self, content: str, **settings):
+    def print(self, content: str, **settings):
         '''
             Print some text on the thermal printer \n
             Can pass in settings kwargs to define the settings for the thermal printer. 
