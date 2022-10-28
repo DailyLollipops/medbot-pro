@@ -494,6 +494,7 @@ class Medbot:
             raise Exception('On Failure Callback must be a function')
         if(self.voice_command_enabled):
             self.listening = True
+            text = ''
             while(self.listening):
                 try:
                     with self.microphone:
