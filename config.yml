@@ -1,9 +1,32 @@
 medbot:
+  database:
+    host: 'sql.freedb.tech'
+    database: 'freedb_medbot'
+    user: 'freedb_medbot'
+    password: 'p5CdUCY6w7!*Eg?'
   settings:
     voice_command: true
     voice_prompt: true
-  database:
-    host: sql.freedb.tech
-    database: freedb_medbot
-    user: freedb_medbot
-    password: p5CdUCY6w7!*Eg?
+  speaker:
+    rate: 150 # default: 130
+    volume: 1 # default: 1
+    voice: 'female' # values: 'male' or 'female'
+  gui:
+    body_check_prompt:
+      text: 'Please position your arm correctly'
+      voice: Please position your arm correctly'
+    in_progress_prompt:
+      text: 'Measuring your vital signs. Please stay still'
+      voice: 'Measuring your vital signs. Please stay still'
+    vital_signs_indicator:
+      low: 'Your vital signs are below than what is supposed to be normal. You should consult your doctor immediately'
+      normal: 'Your vital signs seems normal. You should be fine for now'
+      high: 'Your vitals signs seems higher than normal. You should consult your doctor immediately'
+    printer_prompt:
+      text: 'Print results? \n'
+      accepted_answers:
+        - 'yes'
+        - 'no'
+      on_failure_message: 'Please respond with yes or no'
+      
+    

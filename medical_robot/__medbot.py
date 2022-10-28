@@ -9,7 +9,7 @@ from base64 import b64encode
 from base64 import b64decode
 from escpos.printer import Usb
 from datetime import datetime
-# from .__max30102 import MAX30102
+from .__max30102 import MAX30102
 from .__bp3gy12n import Microlife_BTLE
 from serial import Serial
 from .__utility import calc_hr_and_spo2, determine_pulse_rate_rating, determine_blood_pressure_rating, determine_blood_saturation_rating
@@ -47,13 +47,13 @@ class Medbot:
             raise Exception('Initialization Error: parameter must be of type Database')
         self.__password = bytes('MedbotPRBPM' + '\0\0\0\0\0', 'utf-8')
         self.qrcode_scanner = cv2.VideoCapture(camera_index)
-        # self.oximeter = MAX30102()
+        self.oximeter = MAX30102()
         self.recognizer = speech_recognition.Recognizer()
         self.microphone = speech_recognition.Microphone(device_index = microphone_index)
         self.speaker = pyttsx3.init()
-        # self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
+        self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
         self.printer = None
-        # self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
+        self.arduino = Serial('/dev/ttyUSB0', 9600, timeout = 1)
         self.arduino = None
         self.start_blood_pressure_monitor_delay = 10
         self.pulse_rate_from_bpm = False
@@ -198,7 +198,7 @@ class Medbot:
             Send command to the Arduino to start body check. \n
             Also includes the body lock operation invoked in the Arduino
         '''
-        # self.arduino.write(bytes('0', 'utf-8'))
+        self.arduino.write(bytes('0', 'utf-8'))
         self.body_check_started = True
         self.body_check_in_progress = True
 
@@ -291,24 +291,22 @@ class Medbot:
             Returns and cache pulse rate and blood saturation on default. If `pulse_rate_from_bpm
             is set to `True` returns only blood saturation
         '''
-        average_pulse_rate = 120
-        average_blood_saturation = 95
         pulse_rate_samples = []
         blood_saturation_samples = []
         count = 0
-        # while(True):
-        #     red, ir = self.oximeter.read_sequential()
-        #     pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = utility.calc_hr_and_spo2(ir[:100], red[:100])
-        #     if(pulse_rate_valid and blood_saturation_valid and count <= 10):
-        #         pulse_rate_samples.append(pulse_rate)
-        #         blood_saturation_samples.append(blood_saturation)
-        #         count = count + 1
-        #     if(count > 5):
-        #         break
-        # average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
+        while(True):
+            red, ir = self.oximeter.read_sequential()
+            pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = utility.calc_hr_and_spo2(ir[:100], red[:100])
+            if(pulse_rate_valid and blood_saturation_valid and count <= 10):
+                pulse_rate_samples.append(pulse_rate)
+                blood_saturation_samples.append(blood_saturation)
+                count = count + 1
+            if(count > 5):
+                break
+        average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
         self.current_reading['blood_saturation'] = average_blood_saturation
         if(not self.pulse_rate_from_bpm):
-            # average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
+            average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
             self.current_reading['pulse_rate'] = average_pulse_rate
             return average_pulse_rate, average_blood_saturation
         else:
@@ -324,7 +322,7 @@ class Medbot:
             `pulse_rate_from_bpm` property to true by direct or by calling
             `set_pulse_rate_from_bpm(True)`.
         '''
-        # self.arduino.write('9', 'utf-8')
+        self.arduino.write('9', 'utf-8')
         time.sleep(self.start_blood_pressure_monitor_delay)
         blood_pressure_monitor = Microlife_BTLE()
         blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)

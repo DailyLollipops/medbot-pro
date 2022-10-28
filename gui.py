@@ -1,6 +1,7 @@
 from tkinter import Image, messagebox
 from PIL import ImageTk,Image
 from threading import Thread
+from datetime import datetime
 import medical_robot
 import tkinter
 import time
@@ -54,8 +55,9 @@ class MedbotGUI:
                 self.qrcode_scanner_frame.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
                 try:
                     self.logged_in = self.medbot.login_tk(frame)
-                except:
+                except Exception as e:
                     show_message(self.window, 'Login Failed', 'Invalid Credentials', timeout = 1500)
+                    print(e)
                 if(self.logged_in):
                     show_message(self.window, 'Login Successfully', 
                                         'Welcome back, ' + self.medbot.current_user.name + ' !',
@@ -151,9 +153,14 @@ class MedbotGUIMain():
         self.animation_timer = 1
         self.oximeter_thread = Thread(target = self.root.medbot.start_oximeter)
         self.bp_thread = Thread(target = self.root.medbot.start_blood_pressure_monitor)
+        self.voice_prompt_started = False
         self.oximeter_thread_started = False
         self.bp_thread_started = False
         self.printer_prompted = False
+        self.printer_responded = False
+        self.printer_choice_displayed = False
+        self.printer_choice_thread_started = False
+        self.window_completed = False
 
         self.display = tkinter.Canvas(self.window, width = 700, height = 270)
         self.display_text = self.display.create_text(350, 140, text = 'Initializing Please Wait',
@@ -189,28 +196,30 @@ class MedbotGUIMain():
                             anchor = tkinter.CENTER, font = ('Lucida', 15, 'bold'), justify = 'center')
         self.blood_saturation_holder.configure(background = '#f5f7fa')
         self.blood_saturation_holder.place(x = 530, y = 320)
-
+        self.load_config()
         self.update()
 
     def update(self):
         # Check if body check operation hasn't start (initialize)
-        if(not self.root.medbot.body_check_started):
-            if(self.root.medbot.voice_prompt_enabled):
-                voice_prompt = Thread(target=lambda:self.root.medbot.speak('Please position your arm properly'))
-                voice_prompt.start()
+        if(not self.root.medbot.body_check_started and not self.window_completed):
             self.display.itemconfigure(self.display_text, text = 'Starting Body Check')
-            self.root.medbot.start_body_check()
+            if(not self.voice_prompt_started):
+                self.voice_prompt_started = True
+                voice_prompt = Thread(target=self.root.medbot.speak, args=(self.body_check_prompt_voice,))
+                voice_prompt.start()
+                self.root.medbot.start_body_check()
+            time.sleep(5)
 
         # Check if body check operation is in progress
         elif(self.root.medbot.body_check_in_progress):
             if(self.animation_timer == 1):
-                self.display.itemconfigure(self.display_text, text = 'Waiting to properly position arm .')
+                self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + ' .')
                 self.animation_timer = 2
             elif(self.animation_timer == 2):
-                self.display.itemconfigure(self.display_text, text = 'Waiting to properly position arm  .')
+                self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + '  .')
                 self.animation_timer = 0
             elif(self.animation_timer == 0):
-                self.display.itemconfigure(self.display_text, text = 'Waiting to properly position arm.')
+                self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + '.')
                 self.animation_timer = 1
                 # For testing only, use the communication with Arduino instead
                 self.root.medbot.body_check_complete() 
@@ -219,14 +228,11 @@ class MedbotGUIMain():
         # Check if body check operation is completed but the measuring operation has not started
         # Starts the oximeter and bp thread
         elif(self.root.medbot.body_check_completed and not self.operation_started):
+            self.display.itemconfigure(self.display_text, text = self.in_progress_prompt_text)
             if(self.root.medbot.voice_prompt_enabled):
-                voice_prompt = Thread(target=lambda:self.root.medbot.speak('Measuring your vital signs. Please stay still'))
+                voice_prompt = Thread(target=self.root.medbot.speak, args=(self.in_progress_prompt_voice,))
                 voice_prompt.start()
-            self.display.itemconfigure(self.display_text, text = 'Measuring your vital signs. Please stay still')
-            print(self.root.medbot.body_check_completed)
-            print(self.operation_started)
             self.operation_started = True
-            print(self.operation_started)
             if(not self.oximeter_thread_started):
                 self.oximeter_thread.start()
                 self.oximeter_thread_started = True
@@ -257,16 +263,35 @@ class MedbotGUIMain():
             self.blood_pressure_holder.itemconfigure(self.blood_pressure_text, text = str(systolic) + '/' + str(diastolic) + ' mmHg')
             self.blood_saturation_holder.itemconfigure(self.blood_saturation_text, text = str(blood_saturation) + ' %')
             # self.root.medbot.save_current_reading()
+            rating = self.root.medbot.interpret_current_readings()
+            if(rating == 'Low'):
+                self.root.medbot.speak(self.low_vital_sign_voice_message)
+            elif(rating == 'Normal'):
+                self.root.medbot.speak(self.normal_vital_sign_voice_message)
+            elif(rating == 'High'):
+                self.root.medbot.speak(self.high_vital_sign_voice_message)
             self.printer_prompted = True
 
         # Invoke printer command and logout
         elif(self.printer_prompted):
-            response = messagebox.askyesno('Print results?','Do you want to print your readings?')
-            if(response):
-                # Call printer function here
-                pass
-            self.printer_prompted = False
-            self.on_close()
+            if(not self.printer_choice_displayed):
+                self.display.itemconfigure(self.display_text, text = self.printer_prompt_text)
+                self.yes_button = tkinter.Button(self.display, text = 'Yes', width = 15, height = 2, 
+                                    font = ('Lucida', 14, 'bold'), command = lambda:self.printer_response(True))
+                self.yes_button.place(x = 130, y = 200)
+                self.no_button = tkinter.Button(self.display, text = 'No', width = 15, height = 2, 
+                                    font = ('Lucida', 14, 'bold'), command = lambda:self.printer_response(False))
+                self.no_button.place(x = 355, y = 200)
+                self.printer_choice_displayed = True
+            if(not self.printer_responded):
+                if(not self.printer_choice_thread_started):
+                    self.printer_choice_thread_started = True
+                    self.voice_command = Thread(target = self.root.medbot.get_voice_input, args=(['yes','no'],))
+                    self.voice_command.start()
+                if(self.root.medbot.voice_response == 'yes'):
+                    self.printer_response(True)
+                elif(self.root.medbot.voice_response == 'no'):
+                    self.printer_response(False)
         self.window.after(15, self.update)
 
     def on_close(self):
@@ -274,14 +299,53 @@ class MedbotGUIMain():
                             'See you later, ' + self.root.medbot.current_user.name + ' !',
                             timeout = 3000)
         self.root.medbot.logout()
+        self.root.medbot.database.connection.reconnect()
         self.root.window.deiconify()
         self.window.destroy()
 
-    def askyesno_voice_command(self, title, message):
-        messagebox.askyesno(title, message)
-        response = self.root.medbot.get_voice_input(accepted_answers = ['yes','no'], 
-                            on_failure_callback = lambda:self.root.medbot.speak('I cannot understand'))
-        return response
+    def printer_response(self, agreed: bool):
+        if(agreed):
+            pulse_rate = self.root.medbot.get_current_pulse_rate()
+            systolic = self.root.medbot.get_current_systolic()
+            diastolic = self.root.medbot.get_current_diastolic()
+            blood_saturation = self.root.medbot.get_current_blood_saturation()
+            pulse_rate_rating = self.root.medbot.interpret_pulse_rate(self.root.medbot.current_user.age, pulse_rate)
+            blood_pressure_rating = self.root.medbot.interpret_blood_pressure(systolic, diastolic)
+            blood_saturation_rating = self.root.medbot.interpret_blood_saturation(blood_saturation)
+            content = f"""
+                Medbot
+Name:   {self.root.medbot.current_user.name}
+Id:     {self.root.medbot.current_user.id}
+Date:   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+                Reading         Rating
+Pulse Rate      {pulse_rate}bpm         {pulse_rate_rating}
+Blood Pressure  {systolic}/{diastolic}mmHg          {blood_pressure_rating}
+Sp02            {blood_saturation}          {blood_saturation_rating}     
+        
+        """
+            self.root.medbot.print(content)
+        self.printer_responded = True
+        self.root.medbot.listening = False
+        self.window_completed = True
+        self.on_close()
+
+    def on_failure_voice_command(self):
+        self.root.medbot.speak(self.voice_command_fail_message)
+        
+    def load_config(self):
+        with open('config.yml', 'r') as file:
+            config = yaml.safe_load(file)
+        self.body_check_prompt_text = config['medbot']['gui']['body_check_prompt']['text']
+        self.body_check_prompt_voice = config['medbot']['gui']['body_check_prompt']['voice']
+        self.in_progress_prompt_text = config['medbot']['gui']['in_progress_prompt']['text']
+        self.in_progress_prompt_voice = config['medbot']['gui']['in_progress_prompt']['voice']
+        self.low_vital_sign_voice_message = config['medbot']['gui']['vital_signs_indicator']['low']
+        self.normal_vital_sign_voice_message = config['medbot']['gui']['vital_signs_indicator']['normal']
+        self.high_vital_sign_voice_message = config['medbot']['gui']['vital_signs_indicator']['high']
+        self.printer_prompt_text = config['medbot']['gui']['printer_prompt']['text']
+        self.printer_prompt_answers = config['medbot']['gui']['printer_prompt']['accepted_answers']
+        self.voice_command_fail_message = config['medbot']['gui']['printer_prompt']['on_failure_message'] 
 
 if __name__ == '__main__':
     with open('config.yml', 'r') as file:
@@ -290,10 +354,8 @@ if __name__ == '__main__':
     database = config['medbot']['database']['database']
     database_user = config['medbot']['database']['user']
     database_password = config['medbot']['database']['password']
-    voice_prompt = config['medbot']['settings']['voice_prompt']
-    voice_command = config['medbot']['settings']['voice_command']
+
     database = medical_robot.Database(database_host,database,database_user,database_password)
     medbot = medical_robot.Medbot(database, microphone_index = 0)
-    medbot.set_voice_prompt_enabled(voice_prompt)
-    medbot.set_voice_command_enabled(voice_command)
+    medbot.load_config('config.yml')
     MedbotGUI(medbot)
