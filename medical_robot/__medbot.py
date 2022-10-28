@@ -463,7 +463,7 @@ class Medbot:
                 pass
         return success
 
-    def get_voice_input(self, accepted_answers: array = [], on_failure_callback: FunctionType = lambda:print('I cannot understand. Please try again')):
+    def get_voice_input(self, accepted_answers: array or list = [], on_failure_callback: FunctionType = lambda:print('I cannot understand. Please try again')):
         '''
             Get voice stream from the microphone and tries to decode it\n
             Only process if `voice_command_enabled` property is `True` \n
