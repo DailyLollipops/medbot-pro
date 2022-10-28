@@ -12,7 +12,7 @@ from datetime import datetime
 # from .__max30102 import MAX30102
 from .__bp3gy12n import Microlife_BTLE
 from serial import Serial
-from .__utility import *
+from .__utility import calc_hr_and_spo2, determine_pulse_rate_rating, determine_blood_pressure_rating, determine_blood_saturation_rating
 from types import FunctionType
 import cv2
 import numpy
@@ -179,7 +179,7 @@ class Medbot:
             Send command to the Arduino to start body check. \n
             Also includes the body lock operation invoked in the Arduino
         '''
-        self.arduino.write(bytes('0', 'utf-8'))
+        # self.arduino.write(bytes('0', 'utf-8'))
         self.body_check_started = True
         self.body_check_in_progress = True
 
@@ -305,7 +305,7 @@ class Medbot:
             `pulse_rate_from_bpm` property to true by direct or by calling
             `set_pulse_rate_from_bpm(True)`.
         '''
-        self.arduino.write('9', 'utf-8')
+        # self.arduino.write('9', 'utf-8')
         time.sleep(self.start_blood_pressure_monitor_delay)
         blood_pressure_monitor = Microlife_BTLE()
         blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)
@@ -321,6 +321,88 @@ class Medbot:
         else:
             return systolic, diastolic
     
+    def interpret_pulse_rate(self, age, pulse_rate):
+        '''
+            Interpret the given pulse rate \n
+            Possible return values: \n
+            - `Low`
+            - `Normal`
+            - `High`
+        '''
+        pulse_rate_rating = determine_pulse_rate_rating(age, pulse_rate)
+        return pulse_rate_rating
+
+    def interpret_blood_pressure(self, systolic, diastolic):
+        '''
+            Interpret the blood pressure with the given systolic and diastolic \n
+            Possible return values: \n
+            - `Low`
+            - `Normal`
+            - `Elevated`
+            - `High Stage 1`
+            - `High Stage 2`
+            - `Hypertensive Crisis`
+        '''
+        blood_pressure_rating = determine_blood_pressure_rating(systolic, diastolic)
+        return blood_pressure_rating
+
+    def interpret_blood_saturation(self, blood_saturation):
+        '''
+            Interpret the given blood_saturation \n
+            Possible return values: \n
+            - `Low`
+            - `Normal`
+            - `High`
+        '''
+        blood_saturation_rating = determine_blood_saturation_rating(blood_saturation)
+        return blood_saturation_rating
+
+    def interpret_readings(self, pulse_rate, systolic, diastolic, blood_saturation):
+        '''
+            Interpret the overall rating using the given parameters \n
+            Possible return values: \n
+            - `Low`
+            - `Normal`
+            - `High`
+        '''
+        pulse_rate_rating = determine_pulse_rate_rating(self.current_user.get_info()['age'],
+                            pulse_rate, return_int = True)
+        blood_pressure_rating = determine_blood_pressure_rating(systolic, diastolic,
+                            return_int = True)
+        blood_saturation_rating = determine_blood_saturation_rating(blood_saturation,
+                            return_int = True)
+        overall_rating = (pulse_rate_rating + blood_pressure_rating + blood_saturation_rating)/3
+        if(overall_rating <= 1):
+            rating = 'Low'
+        elif(overall_rating <= 2):
+            rating = 'Normal'
+        elif(overall_rating <= 3):
+            rating = 'High'
+        return rating
+
+    def interpret_current_readings(self):
+        '''
+            Interpret the overall rating using the cached reading \n
+            Possible return values: \n
+            - `Low`
+            - `Normal`
+            - `High`
+        '''
+        pulse_rate_rating = determine_pulse_rate_rating(self.current_user.get_info()['age'],
+                            self.get_current_pulse_rate(), return_int = True)
+        blood_pressure_rating = determine_blood_pressure_rating(self.get_current_systolic(),
+                            self.get_current_diastolic(), return_int = True)
+        blood_saturation_rating = determine_blood_saturation_rating(self.get_current_blood_saturation(),
+                            return_int = True)
+        overall_rating = (pulse_rate_rating + blood_pressure_rating + blood_saturation_rating)/3
+        if(overall_rating <= 1):
+            rating = 'Low'
+        elif(overall_rating <= 2):
+            rating = 'Normal'
+        elif(overall_rating <= 3):
+            rating = 'High'
+        return rating
+
     def save_reading(self, pulse_rate: int, systolic: int, diastolic: int, blood_saturation: int):
         '''
             Save readings to the database \n
