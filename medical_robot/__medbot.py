@@ -64,6 +64,7 @@ class Medbot:
         self.listening = False
         self.voice_prompt_enabled = True
         self.voice_command_enabled = True
+        self.voice_response = ''
         self.current_reading = {
             'pulse_rate': None,
             'systolic': None,
@@ -167,6 +168,7 @@ class Medbot:
         self.body_check_completed = False
         self.body_check_started = False
         self.body_check_in_progress = False
+        self.voice_response = ''
         self.current_reading = {
             'pulse_rate': None,
             'systolic': None,
@@ -487,11 +489,14 @@ class Medbot:
                             if(text in accepted_answers):
                                 break
                             else:
+                                print(text)
                                 on_failure_callback()
                         else:
                             break
                 except:
                     on_failure_callback()
+            self.listening = False
+            self.voice_response = text
             return text
 
     def speak(self, text: str):
@@ -586,6 +591,9 @@ class Medbot:
     def set_pulse_rate_from_bp(self, value: bool):
         self.pulse_rate_from_bpm = value
 
+    def get_available_microphones(self):
+        devices = self.microphone.list_microphone_names()
+        return devices
     ########################################################
     #              Tkinter Support Functions               #
     ########################################################
