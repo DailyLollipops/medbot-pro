@@ -19,6 +19,7 @@ import numpy
 import speech_recognition
 import pyttsx3
 import time
+import yaml
 
 __all__ = ['Medbot']
 
@@ -71,6 +72,22 @@ class Medbot:
             'diastolic': None,
             'blood_saturation': None
         }
+
+    def load_config(self, config_file):
+        with open(config_file, 'r') as file:
+            config = yaml.safe_load(file)
+        voice_command_enabled = config['medbot']['settings']['voice_command']
+        voice_prompt_enabled = config['medbot']['settings']['voice_prompt']
+        speaker_rate = config['medbot']['speaker']['rate']
+        speaker_volume = config['medbot']['speaker']['volume']
+        speaker_voice = config['medbot']['speaker']['voice']
+        if(type(voice_command_enabled) != bool):
+            raise Exception('Voice command setting value error. Must be boolean')
+        if(type(voice_prompt_enabled) != bool):
+            raise Exception('Voice prompt setting value error. Must be boolean')
+        self.voice_command_enabled = voice_command_enabled
+        self.voice_prompt_enabled = voice_prompt_enabled
+        self.set_speaker_properties(rate = speaker_rate, volume = speaker_volume, voice = speaker_voice)
 
     def __decodeframe(self, image):
         '''
@@ -487,11 +504,13 @@ class Medbot:
                         text = text.lower()
                         if(len(accepted_answers) > 0):
                             if(text in accepted_answers):
+                                self.listening = False
                                 break
                             else:
                                 print(text)
                                 on_failure_callback()
                         else:
+                            self.listening = False
                             break
                 except:
                     on_failure_callback()
