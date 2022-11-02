@@ -8,9 +8,10 @@ medbot:
     voice_command: true
     voice_prompt: true
   speaker:
-    rate: 150 # default: 130
+    id: 'english'
+    rate: 75 # default: 130
     volume: 1 # default: 1
-    voice: 'female' # values: 'male' or 'female'
+    voice: 'male' # values: 'male' or 'female'
   gui:
     body_check_prompt:
       text: 'Please position your arm correctly'
@@ -23,7 +24,7 @@ medbot:
       normal: 'Your vital signs seems normal. You should be fine for now'
       high: 'Your vitals signs seems higher than normal. You should consult your doctor immediately'
     printer_prompt:
-      text: 'Print results? \n'
+      text: 'Print results?'
       accepted_answers:
         - 'yes'
         - 'no'

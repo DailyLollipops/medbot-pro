@@ -52,7 +52,7 @@ class MedbotGUI:
             ret, frame = self.medbot.get_qrcode_scanner_frame()
             if ret:
                 self.photo = ImageTk.PhotoImage(image = Image.fromarray(frame))
-                self.qrcode_scanner_frame.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
+                self.scanner_image = self.qrcode_scanner_frame.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
                 try:
                     self.logged_in = self.medbot.login_tk(frame)
                 except Exception as e:
@@ -62,79 +62,80 @@ class MedbotGUI:
                     show_message(self.window, 'Login Successfully', 
                                         'Welcome back, ' + self.medbot.current_user.name + ' !',
                                         timeout = 2000)
+                    self.qrcode_scanner_frame.delete(self.scanner_image)
                     MedbotGUIMain(self)
         self.window.after(15, self.update)
 
     def open_settings(self):
-        MedbotGUISettings(self)
+        self.MedbotGUISettings(self)
 
-class MedbotGUISettings():
-    def __init__(self, root: MedbotGUI):
-        self.root = root
-        self.window = tkinter.Toplevel(self.root.window)
-        self.window.title('Settings')
-        self.window.geometry('400x300')
-        self.window.configure(background = 'white')
-        self.window.grab_set()
+    class MedbotGUISettings:
+        def __init__(self, master: tkinter.Tk, medbot: medical_robot.Medbot):
+            self.root = root
+            self.window = tkinter.Toplevel(self.root.window)
+            self.window.title('Settings')
+            self.window.geometry('400x300')
+            self.window.configure(background = 'white')
+            self.window.grab_set()
 
-        self.settings_logo = ImageTk.PhotoImage(Image.open('images/settings.png').resize((24,24)))
-        self.title_label = tkinter.Label(self.window, text = ' Settings', image = self.settings_logo,
-                            compound = tkinter.LEFT, font = ('Lucida', 16), justify = 'center',
-                            background = 'white')
-        self.title_label.place(x = 150, y = 10)
+            self.settings_logo = ImageTk.PhotoImage(Image.open('images/settings.png').resize((24,24)))
+            self.title_label = tkinter.Label(self.window, text = ' Settings', image = self.settings_logo,
+                                compound = tkinter.LEFT, font = ('Lucida', 16), justify = 'center',
+                                background = 'white')
+            self.title_label.place(x = 150, y = 10)
 
-        self.voice_prompt_logo = ImageTk.PhotoImage(Image.open('images/speaker.png').resize((16,16)))
-        self.voice_prompt_label = tkinter.Label(self.window, text = ' Voice Prompt', font = ('Lucida', 11),
-                            background = 'white', image = self.voice_prompt_logo, compound = tkinter. LEFT)
-        self.voice_prompt_label.place(x = 50, y = 75)
-        self.voice_prompt_value = tkinter.StringVar(self.window,
-                            'enabled' if self.root.medbot.voice_prompt_enabled == True else 'disabled')
-        tkinter.Radiobutton(self.window, text = 'Enable', variable = self.voice_prompt_value,
-                            value = 'enabled', command = self.set_voice_prompt,
-                            background = 'white').place(x = 80, y = 100)
-        tkinter.Radiobutton(self.window, text = 'Disable', variable = self.voice_prompt_value,
-                            value = 'disabled', command = self.set_voice_prompt,
-                            background = 'white').place(x = 160, y = 100)
+            self.voice_prompt_logo = ImageTk.PhotoImage(Image.open('images/speaker.png').resize((16,16)))
+            self.voice_prompt_label = tkinter.Label(self.window, text = ' Voice Prompt', font = ('Lucida', 11),
+                                background = 'white', image = self.voice_prompt_logo, compound = tkinter. LEFT)
+            self.voice_prompt_label.place(x = 50, y = 75)
+            self.voice_prompt_value = tkinter.StringVar(self.window,
+                                'enabled' if self.root.medbot.voice_prompt_enabled == True else 'disabled')
+            tkinter.Radiobutton(self.window, text = 'Enable', variable = self.voice_prompt_value,
+                                value = 'enabled', command = self.set_voice_prompt,
+                                background = 'white').place(x = 80, y = 100)
+            tkinter.Radiobutton(self.window, text = 'Disable', variable = self.voice_prompt_value,
+                                value = 'disabled', command = self.set_voice_prompt,
+                                background = 'white').place(x = 160, y = 100)
 
-        self.voice_command_logo = ImageTk.PhotoImage(Image.open('images/microphone.png').resize((16,16)))
-        self.voice_command_label = tkinter.Label(self.window, text = ' Voice Command', font = ('Lucida', 11),
-                            background = 'white', image = self.voice_command_logo, compound = tkinter.LEFT)  
-        self.voice_command_label.place(x = 50, y = 150)
-        self.voice_command_value = tkinter.StringVar(self.window,
-                            'enabled' if self.root.medbot.voice_command_enabled == True else 'disabled')
-        tkinter.Radiobutton(self.window, text = 'Enable', variable = self.voice_command_value,
-                            value = 'enabled', command = self.set_voice_command,
-                            background = 'white').place(x = 80, y = 175)
-        tkinter.Radiobutton(self.window, text = 'Disable', variable = self.voice_command_value,
-                            value = 'disabled', command = self.set_voice_command,
-                            background = 'white').place(x = 160, y = 175)
+            self.voice_command_logo = ImageTk.PhotoImage(Image.open('images/microphone.png').resize((16,16)))
+            self.voice_command_label = tkinter.Label(self.window, text = ' Voice Command', font = ('Lucida', 11),
+                                background = 'white', image = self.voice_command_logo, compound = tkinter.LEFT)  
+            self.voice_command_label.place(x = 50, y = 150)
+            self.voice_command_value = tkinter.StringVar(self.window,
+                                'enabled' if self.root.medbot.voice_command_enabled == True else 'disabled')
+            tkinter.Radiobutton(self.window, text = 'Enable', variable = self.voice_command_value,
+                                value = 'enabled', command = self.set_voice_command,
+                                background = 'white').place(x = 80, y = 175)
+            tkinter.Radiobutton(self.window, text = 'Disable', variable = self.voice_command_value,
+                                value = 'disabled', command = self.set_voice_command,
+                                background = 'white').place(x = 160, y = 175)
 
-    def set_voice_prompt(self):
-        temp = self.voice_prompt_value.get()
-        if(temp == 'disabled'):
-            value = False
-        else:
-            value = True
-        self.root.medbot.set_voice_prompt_enabled(value)
-        self.save_config('voice_prompt', value)
-        print('Voice prompt set to ' + str(value))
+        def set_voice_prompt(self):
+            temp = self.voice_prompt_value.get()
+            if(temp == 'disabled'):
+                value = False
+            else:
+                value = True
+            self.root.medbot.set_voice_prompt_enabled(value)
+            self.save_config('voice_prompt', value)
+            print('Voice prompt set to ' + str(value))
 
-    def set_voice_command(self):
-        temp = self.voice_command_value.get()
-        if(temp == 'disabled'):
-            value = False
-        else:
-            value = True
-        self.root.medbot.set_voice_command_enabled(value)
-        self.save_config('voice_command', value)
-        print('Voice command set to ' + str(value))
+        def set_voice_command(self):
+            temp = self.voice_command_value.get()
+            if(temp == 'disabled'):
+                value = False
+            else:
+                value = True
+            self.root.medbot.set_voice_command_enabled(value)
+            self.save_config('voice_command', value)
+            print('Voice command set to ' + str(value))
 
-    def save_config(self, key, value):
-        with open('config.yml', 'r') as file:
-            config = yaml.safe_load(file)
-        config['medbot']['settings'][key] = value
-        with open('config.yml', 'w') as file:
-            yaml.dump(config, file)
+        def save_config(self, key, value):
+            with open('config.yml', 'r') as file:
+                config = yaml.safe_load(file)
+            config['medbot']['settings'][key] = value
+            with open('config.yml', 'w') as file:
+                yaml.dump(config, file)
 
 class MedbotGUIMain():
     def __init__(self, root: MedbotGUI):
@@ -148,6 +149,8 @@ class MedbotGUIMain():
         self.window.iconphoto(False, logo)
         self.window.configure(background = 'white')
 
+        self.window_launched = False
+        self.display_refreshed = False
         self.operation_started = False
         self.operation_completed = False
         self.animation_timer = 1
@@ -201,17 +204,18 @@ class MedbotGUIMain():
 
     def update(self):
         # Check if body check operation hasn't start (initialize)
-        if(not self.root.medbot.body_check_started and not self.window_completed):
+        if(not self.root.medbot.body_check_started and not self.window_completed and self.window_launched):
             self.display.itemconfigure(self.display_text, text = 'Starting Body Check')
             if(not self.voice_prompt_started):
                 self.voice_prompt_started = True
-                voice_prompt = Thread(target=self.root.medbot.speak, args=(self.body_check_prompt_voice,))
-                voice_prompt.start()
+                self.root.medbot.speak(self.body_check_prompt_voice)
+                # voice_prompt = Thread(target=self.root.medbot.speak, args=(self.body_check_prompt_voice,))
+                # voice_prompt.start()
                 self.root.medbot.start_body_check()
-            time.sleep(5)
+            
 
         # Check if body check operation is in progress
-        elif(self.root.medbot.body_check_in_progress):
+        elif(self.root.medbot.body_check_in_progress and self.voice_prompt_started):
             if(self.animation_timer == 1):
                 self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + ' .')
                 self.animation_timer = 2
@@ -229,16 +233,19 @@ class MedbotGUIMain():
         # Starts the oximeter and bp thread
         elif(self.root.medbot.body_check_completed and not self.operation_started):
             self.display.itemconfigure(self.display_text, text = self.in_progress_prompt_text)
-            if(self.root.medbot.voice_prompt_enabled):
-                voice_prompt = Thread(target=self.root.medbot.speak, args=(self.in_progress_prompt_voice,))
-                voice_prompt.start()
-            self.operation_started = True
-            if(not self.oximeter_thread_started):
-                self.oximeter_thread.start()
-                self.oximeter_thread_started = True
-            if(not self.bp_thread_started):
-                self.bp_thread.start()
-                self.oximeter_thread_started = True
+            if(self.display_refreshed):
+                if(self.root.medbot.voice_prompt_enabled):
+                    self.root.medbot.speak(self.in_progress_prompt_voice)
+                    # voice_prompt = Thread(target=self.root.medbot.speak, args=(self.in_progress_prompt_voice,))
+                    # voice_prompt.start()
+                self.operation_started = True
+                if(not self.oximeter_thread_started):
+                    self.oximeter_thread.start()
+                    self.oximeter_thread_started = True
+                if(not self.bp_thread_started):
+                    self.root.medbot.start_blood_pressure_monitor()
+                    self.oximeter_thread_started = True
+            self.display_refreshed = True
 
         # Check if the measuring operation threads are still alive
         # Do some animation
@@ -250,7 +257,7 @@ class MedbotGUIMain():
         elif(self.oximeter_thread_started and not self.oximeter_thread.is_alive() and self.bp_thread_started and not self.bp_thread.is_alive() and self.operation_started):
             self.operation_completed = True
             self.operation_started = False
-
+            
         # Check if operation has completed
         # Flash the readings on to the screen and prompt user to use thermal printer or not
         # Save reading to database
@@ -275,7 +282,7 @@ class MedbotGUIMain():
         # Invoke printer command and logout
         elif(self.printer_prompted):
             if(not self.printer_choice_displayed):
-                self.display.itemconfigure(self.display_text, text = self.printer_prompt_text)
+                self.display.itemconfigure(self.display_text, text = self.printer_prompt_text + '\n')
                 self.yes_button = tkinter.Button(self.display, text = 'Yes', width = 15, height = 2, 
                                     font = ('Lucida', 14, 'bold'), command = lambda:self.printer_response(True))
                 self.yes_button.place(x = 130, y = 200)
@@ -292,12 +299,15 @@ class MedbotGUIMain():
                     self.printer_response(True)
                 elif(self.root.medbot.voice_response == 'no'):
                     self.printer_response(False)
+        elif(not self.window_launched):
+            self.window_launched = True
         self.window.after(15, self.update)
 
     def on_close(self):
         show_message(self.window, 'Logout Successfully', 
                             'See you later, ' + self.root.medbot.current_user.name + ' !',
                             timeout = 3000)
+        time.sleep(3)
         self.root.medbot.logout()
         self.root.medbot.database.connection.reconnect()
         self.root.window.deiconify()
@@ -305,6 +315,7 @@ class MedbotGUIMain():
 
     def printer_response(self, agreed: bool):
         if(agreed):
+            date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             pulse_rate = self.root.medbot.get_current_pulse_rate()
             systolic = self.root.medbot.get_current_systolic()
             diastolic = self.root.medbot.get_current_diastolic()
@@ -313,16 +324,17 @@ class MedbotGUIMain():
             blood_pressure_rating = self.root.medbot.interpret_blood_pressure(systolic, diastolic)
             blood_saturation_rating = self.root.medbot.interpret_blood_saturation(blood_saturation)
             content = f"""
-                Medbot
+            Medbot
+
 Name:   {self.root.medbot.current_user.name}
 Id:     {self.root.medbot.current_user.id}
-Date:   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Date:   {date_now}
 
-                Reading         Rating
-Pulse Rate      {pulse_rate}bpm         {pulse_rate_rating}
-Blood Pressure  {systolic}/{diastolic}mmHg          {blood_pressure_rating}
-Sp02            {blood_saturation}          {blood_saturation_rating}     
-        
+       Reading      Rating
+--------------------------------
+PR     {pulse_rate} bpm      {pulse_rate_rating}
+BP     {systolic}/{diastolic} mmHg   {blood_pressure_rating}
+Sp02   {blood_saturation} %         {blood_saturation_rating}
         """
             self.root.medbot.print(content)
         self.printer_responded = True
@@ -356,6 +368,6 @@ if __name__ == '__main__':
     database_password = config['medbot']['database']['password']
 
     database = medical_robot.Database(database_host,database,database_user,database_password)
-    medbot = medical_robot.Medbot(database, microphone_index = 0)
+    medbot = medical_robot.Medbot(database)
     medbot.load_config('config.yml')
     MedbotGUI(medbot)
