@@ -52,9 +52,7 @@ class Medbot:
         self.microphone = speech_recognition.Microphone(device_index = microphone_index)
         self.speaker = pyttsx3.init()
         self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
-        self.printer = None
-        self.arduino = Serial('/dev/ttyUSB0', 9600, timeout = 1)
-        self.arduino = None
+        self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
         self.start_blood_pressure_monitor_delay = 10
         self.pulse_rate_from_bpm = False
         self.current_user = None,
@@ -78,6 +76,7 @@ class Medbot:
             config = yaml.safe_load(file)
         voice_command_enabled = config['medbot']['settings']['voice_command']
         voice_prompt_enabled = config['medbot']['settings']['voice_prompt']
+        speaker_id = config['medbot']['speaker']['id']
         speaker_rate = config['medbot']['speaker']['rate']
         speaker_volume = config['medbot']['speaker']['volume']
         speaker_voice = config['medbot']['speaker']['voice']
@@ -87,7 +86,7 @@ class Medbot:
             raise Exception('Voice prompt setting value error. Must be boolean')
         self.voice_command_enabled = voice_command_enabled
         self.voice_prompt_enabled = voice_prompt_enabled
-        self.set_speaker_properties(rate = speaker_rate, volume = speaker_volume, voice = speaker_voice)
+        self.set_speaker_properties(id = speaker_id, rate = speaker_rate, volume = speaker_volume, voice = speaker_voice)
 
     def __decodeframe(self, image):
         '''
@@ -296,17 +295,18 @@ class Medbot:
         count = 0
         while(True):
             red, ir = self.oximeter.read_sequential()
-            pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = utility.calc_hr_and_spo2(ir[:100], red[:100])
+            pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = calc_hr_and_spo2(ir[:100], red[:100])
             if(pulse_rate_valid and blood_saturation_valid and count <= 10):
                 pulse_rate_samples.append(pulse_rate)
                 blood_saturation_samples.append(blood_saturation)
                 count = count + 1
+                print(str(pulse_rate) + str(blood_saturation))
             if(count > 5):
                 break
-        average_blood_saturation = sum(blood_saturation_samples)/len(blood_saturation_samples)
+        average_blood_saturation = round(sum(blood_saturation_samples)/len(blood_saturation_samples))
         self.current_reading['blood_saturation'] = average_blood_saturation
         if(not self.pulse_rate_from_bpm):
-            average_pulse_rate = sum(pulse_rate_samples)/len(pulse_rate_samples)
+            average_pulse_rate = round(sum(pulse_rate_samples)/len(pulse_rate_samples))
             self.current_reading['pulse_rate'] = average_pulse_rate
             return average_pulse_rate, average_blood_saturation
         else:
@@ -322,7 +322,7 @@ class Medbot:
             `pulse_rate_from_bpm` property to true by direct or by calling
             `set_pulse_rate_from_bpm(True)`.
         '''
-        self.arduino.write('9', 'utf-8')
+        self.arduino.write(bytes('9', 'utf-8'))
         time.sleep(self.start_blood_pressure_monitor_delay)
         blood_pressure_monitor = Microlife_BTLE()
         blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)
@@ -452,30 +452,18 @@ class Medbot:
         values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
         self.database.insert_record('readings', values)
 
-    def print(self, content: str, **settings):
+    def print(self, content: str):
         '''
-            Print some text on the thermal printer \n
-            Can pass in settings kwargs to define the settings for the thermal printer. 
-            Refer to the [python-ecspos docs](https://python-escpos.readthedocs.io/en/latest/user/methods.html)
-            for possible settings \n
-            Always returns `True` and throws Exception if paper feed is out
-
+            Print some text on the thermal printer
         '''
-        self.printer.set(settings)
         success = False
         while(not success):
-            if(self.printer.is_online()):
-                if(self.printer.paper_status() != 0):
-                    try:
-                        self.printer.text(content)
-                        self.printer.cut()
-                        success = True
-                    except:
-                        break
-                else:
-                    raise Exception('No paper found')
-            else:
-                pass
+            try:
+                self.printer.text(content)
+                self.printer.cut()
+                success = True
+            except:
+                break
         return success
 
     def get_voice_input(self, accepted_answers: array or list = [], on_failure_callback: FunctionType = lambda:print('I cannot understand. Please try again')):
@@ -511,8 +499,8 @@ class Medbot:
                         else:
                             self.listening = False
                             break
-                except:
-                    on_failure_callback()
+                except Exception as e:
+                    print(e)
             self.listening = False
             self.voice_response = text
             return text
@@ -523,14 +511,17 @@ class Medbot:
             Only available if `voice_prompt_enabled` property is `True`
         '''
         if(self.voice_prompt_enabled):
+            if(self.speaker.isBusy()):
+                self.speaker.stop()
             self.speaker.say(text)
             self.speaker.runAndWait()
 
-    def set_speaker_properties(self, rate: int = 100, volume: float = 1.0, voice: str = 'male'):
+    def set_speaker_properties(self, id: str = 'default', rate: int = 100, volume: float = 1.0, voice: str = 'male'):
         '''
             Set the speaker properties to change voice, rate or volume \n
             Voice option can only be `male` or `female`. Defaults to `male`  
         '''
+        self.speaker.setProperty('id', id)
         self.speaker.setProperty('rate', rate)
         self.speaker.setProperty('volume', volume)
         voices = self.speaker.getProperty('voices')
