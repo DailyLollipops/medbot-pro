@@ -53,6 +53,7 @@ class Medbot:
         self.speaker = pyttsx3.init()
         self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
         self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
+        self.oximeter_samples = 5
         self.start_blood_pressure_monitor_delay = 10
         self.pulse_rate_from_bpm = False
         self.current_user = None,
@@ -274,9 +275,8 @@ class Medbot:
             Possible commands:
             - `0` Start Body Check
             - `1` Stop Body Check
-            - `2` Get Body Check Status
-            - `3` Body Release
-            - `4` Start Sanitize
+            - `2` Body Release
+            - `3` Start Sanitize
         '''
         commands = [0, 1, 2, 3]
         if(command in commands):
@@ -292,17 +292,15 @@ class Medbot:
         '''
         pulse_rate_samples = []
         blood_saturation_samples = []
-        count = 0
-        while(True):
+        sample_count = 1
+        while(sample_count < self.oximeter_samples):
             red, ir = self.oximeter.read_sequential()
             pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = calc_hr_and_spo2(ir[:100], red[:100])
-            if(pulse_rate_valid and blood_saturation_valid and count <= 10):
+            if(pulse_rate_valid and blood_saturation_valid and sample_count <= 10):
                 pulse_rate_samples.append(pulse_rate)
                 blood_saturation_samples.append(blood_saturation)
-                count = count + 1
+                sample_count = sample_count + 1
                 print(str(pulse_rate) + str(blood_saturation))
-            if(count > 5):
-                break
         average_blood_saturation = round(sum(blood_saturation_samples)/len(blood_saturation_samples))
         self.current_reading['blood_saturation'] = average_blood_saturation
         if(not self.pulse_rate_from_bpm):
@@ -596,6 +594,15 @@ class Medbot:
             self.voice_command_enabled = value
         else:
             raise Exception('Incorrect value')
+
+    def set_oximeter_sample(self, count: int):
+        '''
+            Sets the sample size of the oximeter. \n
+            `count` parameter determines how many times
+            the oximeter will try to get valid measurements
+            before averaging the result
+        '''
+        self.oximeter_samples = count
 
     def set_pulse_rate_from_bp(self, value: bool):
         self.pulse_rate_from_bpm = value
