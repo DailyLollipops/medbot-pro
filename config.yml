@@ -9,9 +9,12 @@ medbot:
     voice_prompt: true
   speaker:
     id: 'english'
+    language: 'english'
     rate: 75 # default: 130
     volume: 1 # default: 1
     voice: 'male' # values: 'male' or 'female'
+  microphone:
+    index: 2
   gui:
     body_check_prompt:
       text: 'Please position your arm correctly'

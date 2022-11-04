@@ -49,7 +49,12 @@ class Medbot:
         self.qrcode_scanner = cv2.VideoCapture(camera_index)
         self.oximeter = MAX30102()
         self.recognizer = speech_recognition.Recognizer()
-        self.microphone = speech_recognition.Microphone(device_index = microphone_index)
+        self.microphone_index = microphone_index
+        self.microphone = speech_recognition.Microphone(device_index = self.microphone_index)
+        self.voice_language = 'english'
+        self.voice_gender = 'male'
+        self.voice_rate = '100'
+        self.voice_volume = 100
         self.speaker = pyttsx3.init()
         self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
         self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
@@ -78,16 +83,19 @@ class Medbot:
         voice_command_enabled = config['medbot']['settings']['voice_command']
         voice_prompt_enabled = config['medbot']['settings']['voice_prompt']
         speaker_id = config['medbot']['speaker']['id']
+        speaker_language = config['medbot']['speaker']['language']
         speaker_rate = config['medbot']['speaker']['rate']
         speaker_volume = config['medbot']['speaker']['volume']
-        speaker_voice = config['medbot']['speaker']['voice']
+        speaker_gender = config['medbot']['speaker']['gender']
+        microphone_index = config['medbot']['microphone']['index']
         if(type(voice_command_enabled) != bool):
             raise Exception('Voice command setting value error. Must be boolean')
         if(type(voice_prompt_enabled) != bool):
             raise Exception('Voice prompt setting value error. Must be boolean')
         self.voice_command_enabled = voice_command_enabled
         self.voice_prompt_enabled = voice_prompt_enabled
-        self.set_speaker_properties(id = speaker_id, rate = speaker_rate, volume = speaker_volume, voice = speaker_voice)
+        self.set_speaker_properties(id = speaker_id, language = speaker_language, rate = speaker_rate, volume = speaker_volume, voice = speaker_gender)
+        self.set_microphone(microphone_index)
 
     def __decodeframe(self, image):
         '''
@@ -533,19 +541,16 @@ class Medbot:
             self.speaker.say(text)
             self.speaker.runAndWait()
 
-    def set_speaker_properties(self, id: str = 'default', rate: int = 100, volume: float = 1.0, voice: str = 'male'):
+    def set_speaker_properties(self, id: str = 'default', language: str = 'english', rate: int = 100, volume: float = 1.0, gender: str = 'male'):
         '''
             Set the speaker properties to change voice, rate or volume \n
             Voice option can only be `male` or `female`. Defaults to `male`  
         '''
         self.speaker.setProperty('id', id)
-        self.speaker.setProperty('rate', rate)
-        self.speaker.setProperty('volume', volume)
-        voices = self.speaker.getProperty('voices')
-        if(voice == 'female'):
-            self.speaker.setProperty('voice', voices[1].id)
-        else:
-            self.speaker.setProperty('voice', voices[0].id)
+        self.set_voice_language(language)
+        self.set_voice_gender(gender)
+        self.set_voice_rate(rate)
+        self.set_voice_volume(volume)
 
     def start_sanitizer(self):
         '''
@@ -623,11 +628,97 @@ class Medbot:
         self.oximeter_samples = count
 
     def set_pulse_rate_from_bp(self, value: bool):
+        '''
+            Set to `true` to get pulse rate from the
+            blood pressure monitor instead of oximeter
+        '''
         self.pulse_rate_from_bpm = value
 
+    def get_voice_language(self):
+        '''
+            Return current voice prompt language
+        '''
+        return self.voice_language
+
+    def get_voice_gender(self):
+        '''
+            Return the gender of the voice prompt
+        '''
+        return self.voice_gender
+    
+    def get_voice_volume(self):
+        '''
+            Return the current volume of the voice prompt
+        '''
+        return self.voice_volume
+
+    def get_voice_rate(self):
+        '''
+            Return the current rate of the voice prompt
+        '''
+        return self.voice_rate
+    
+    def set_voice_language(self, language: str):
+        '''
+            Set the voice prompt language \n
+            Valid languages: \n
+            - `english`
+            - `filipino`
+        '''
+        self.voice_language = language
+        self.speaker.setProperty('language', language)
+    
+    def set_voice_gender(self, gender: str):
+        '''
+            Set the voice prompt gender \n
+            Valid genders: \n
+            - `male`
+            - `female`
+        '''
+        self.voice_gender = gender
+        voices = self.speaker.getProperty('voices')
+        if(gender == 'female'):
+            self.speaker.setProperty('voice', voices[1].id)
+        else:
+            self.speaker.setProperty('voice', voices[0].id)
+
+    def set_voice_rate(self, rate: int):
+        '''
+            Set the voice prompt rate \n
+        '''
+        self.voice_rate = rate
+        self.speaker.setProperty('rate', rate)
+
+    def set_voice_volume(self, volume: int):
+        '''
+            Set the voice prompt volume in percentage \n
+            `e.g. 90 = 90%`
+        '''
+        self.voice_volume = volume/100
+        self.speaker.setProperty('volume', volume)
+        
     def get_available_microphones(self):
+        '''
+            Returns a list of available microphone devices
+        '''
         devices = self.microphone.list_microphone_names()
         return devices
+    
+    def set_microphone(self, index: int):
+        '''
+            Switches the current microphone to the given `index` \n
+            To get available microphone devices use 
+            `get_available_microphones` function
+        '''
+        self.microphone_index = index
+        self.microphone = speech_recognition.Microphone(device_index = self.microphone_index)
+    
+    def get_microphone_index(self):
+        '''
+            Return the active microphone device index
+        '''
+        return self.microphone_index
+
     ########################################################
     #              Tkinter Support Functions               #
     ########################################################
