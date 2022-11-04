@@ -252,22 +252,37 @@ class Medbot:
         else:
             raise Exception('Body check is not completed or not started yet')
 
-    def get_arduino_response(self, return_string: bool = False):
+    def get_arduino_response(self, return_string: bool = False, timeout: float = 0):
         '''
             Get the Arduino response if available \n
+            Timeout could be set to listen for response
+            within the timeout duration. If `timeout` is
+            set to 0, function will execute one time \n
+            Setting `timeout` to 0 may return empty string
+            and recommended to call in a loop \n
             Possible response:
             - `0` Body Check Completed
             - `1` Sanitize Completed`
         '''
-        response = self.arduino.readline().decode()
+        if(timeout <= 0):
+            response = self.arduino.readline().decode('utf-8').rstrip()
+        else:
+            start_time = datetime.timestamp(datetime.now())
+            now_time = datetime.timestamp(datetime.now())
+            while((now_time - start_time) < timeout + 0.1):
+                response = self.arduino.readline().decode('utf-8').rstrip()
+                now_time = datetime.timestamp(datetime.now())
+            if((start_time - now_time) > timeout and response == ''):
+                raise Exception('Timeout reached')
         if(return_string):
-            if(response == 0):
+            if(response == '0'):
                 return 'Body Check Completed'
-            elif(response == 1):
+            elif(response == '1'):
                 return 'Sanitize Completed'
+            else:
+                return 'Ok'
         else:
             return response
-
     def send_command(self, command: int):
         '''
             Send command to arduino. 
@@ -280,7 +295,11 @@ class Medbot:
         '''
         commands = [0, 1, 2, 3]
         if(command in commands):
-            self.arduino.write(bytes(str(command), 'utf-8'))
+            while True:
+                self.arduino.write(bytes(str(command)+'\n','utf-8'))
+                response = self.get_arduino_response()
+                if(response == 'ok'):
+                    break
         else:
             raise Exception('Unknown command')
 
@@ -658,3 +677,16 @@ class Medbot:
         '''
         self.body_check_completed = True
         self.body_check_in_progress = False
+    
+    def test_write(self, text):
+        while True:
+            self.arduino.write(bytes(text+'\n','utf-8'))
+            response = self.test_read()
+            print(response)
+            if(response == 'ok'):
+                break
+        
+
+    def test_read(self):
+        response = self.arduino.read_until('\n').decode('utf-8').rstrip()
+        return response

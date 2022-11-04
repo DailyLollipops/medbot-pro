@@ -16,6 +16,7 @@ const int cuffPiezo = 12;
 const int bpmSolenoid = 13;
 
 // Global variables
+String command = "";
 int current_command = -1;
 int sanitizerTime = 2000; //Sanitizer livetime in millis
 bool oximeterLocked = false;
@@ -36,50 +37,56 @@ void setup() {
   pinMode(cuffPiezo, INPUT);
   pinMode(bpmSolenoid, OUTPUT);
   cuffStepper.setSpeed(20);
+
+  // Initialize serial
+  Serial.begin(9600);
 }
 
 void loop() {
-  // command selector
-  String command = receiveCommand();
-  if(command != ""){
-    if(command == "0"){
-      current_command = 0; 
-    }
-    else if(command == "1"){
-      current_command = 1;
-    }
-    else if(command == "2"){
-      current_command = 2;
-    }
-    else if(command == "3"){
-      current_command = 3;
-    }
+  if(command == "0"){
+    current_command = 0;
+    command = "";
+  }
+  else if(command == "1"){
+    current_command = 1;
+    command = "";
+  }
+  else if(command == "2"){
+    current_command = 2;
+    command = "";
+  }
+  else if(command == "3"){
+    current_command = 3;
+    command = "";
   }
 
   /* 
     Main Loop 
   */
-
+  // Command selector
+  if(current_command == -1){
+    command = receiveCommand();
+  }
   // Start body check
-  if(command == 0){
-    if(oximeterLocked && cuffLocked){
-      command = -1;
+  else if(current_command == 0){
+    if(oximeterLocked){
+      current_command = -1;
     }
     oximeterLock();
-    cuffLock();
+//    cuffLock();
   }
 
   // Stop body check or Body release
-  else if(command == 1 || command == 2){
+  else if(current_command == 1 || current_command == 2){
     oximeterRelease();
     cuffRelease();
-    command = -1;
+    current_command = -1;
   }
 
   // Start sanitize
-  else if(command == 3){
+  else if(current_command == 3){
     sanitize();
-    command = -1;
+    current_command = -1;
   }
 }
 
@@ -89,20 +96,6 @@ void oximeterLock(){
     oximeterServo.write(-90);
     oximeterLocked = true;
   }
-}
-
-void sanitize(){
-  digitalWrite(sanitizerRelay, HIGH);
-  delay(1000);
-  digitalWrite(sanitizerRelay, LOW);
-  delay(sanitizerTime);
-  digitalWrite(sanitizerRelay, HIGH);
-  delay(1000);
-  digitalWrite(sanitizerRelay, LOW);
-  delay(1000);
-  digitalWrite(sanitizerRelay, HIGH);
-  delay(1000);
-  digitalWrite(sanitizerRelay, LOW);
 }
 
 void oximeterRelease(){
@@ -136,16 +129,31 @@ void cuffRelease(){
   cuffLocked = false;
 }
 
+void sanitize(){
+  digitalWrite(sanitizerRelay, HIGH);
+  delay(1000);
+  digitalWrite(sanitizerRelay, LOW);
+  delay(sanitizerTime);
+  digitalWrite(sanitizerRelay, HIGH);
+  delay(1000);
+  digitalWrite(sanitizerRelay, LOW);
+  delay(1000);
+  digitalWrite(sanitizerRelay, HIGH);
+  delay(1000);
+  digitalWrite(sanitizerRelay, LOW);
+  sendResponse("1");
+}
+
 void sendResponse(String response){
   Serial.println(response);    
 }
 
 String receiveCommand(){
   if(!Serial.available()){
-    String command = Serial.readString();
-    return command;        
+    String sent = Serial.readStringUntil('\n');
+    if(sent != ""){
+      Serial.println("ok");
+      return sent;
+    }
   }
-  else{
-    return "";
-  } 
 }
