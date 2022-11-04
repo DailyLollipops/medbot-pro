@@ -198,7 +198,7 @@ class Medbot:
             Send command to the Arduino to start body check. \n
             Also includes the body lock operation invoked in the Arduino
         '''
-        self.arduino.write(bytes('0', 'utf-8'))
+        self.send_command(0)
         self.body_check_started = True
         self.body_check_in_progress = True
 
@@ -224,7 +224,7 @@ class Medbot:
         '''
             Send command to the Arduino to immediately stop the body check
         '''
-        self.arduino.write(bytes('1', 'utf-8'))
+        self.send_command(1)
         self.body_check_in_progress = False
     
     def get_body_check_status(self):
@@ -248,7 +248,7 @@ class Medbot:
             Only available if body check is completed
         '''
         if(self.body_check_completed):
-            self.arduino.write(bytes('3', 'utf-8'))
+            self.send_command(2)
         else:
             raise Exception('Body check is not completed or not started yet')
 
@@ -551,8 +551,7 @@ class Medbot:
         '''
             Send command to the Arduino to start sanitizing operation
         '''
-        command = 'Start Sanitizer'
-        self.arduino.write(command.encode())
+        self.send_command(3)
 
     def get_current_user(self):
         '''
