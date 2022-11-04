@@ -2,6 +2,7 @@ from tkinter import Image, messagebox
 from PIL import ImageTk,Image
 from threading import Thread
 from datetime import datetime
+from tkinter import ttk
 import medical_robot
 import tkinter
 import time
@@ -93,53 +94,182 @@ class MedbotGUISettings:
         self.voice_prompt_logo = ImageTk.PhotoImage(Image.open('images/speaker.png').resize((16,16)))
         self.voice_prompt_label = tkinter.Label(self.window, text = ' Voice Prompt', font = ('Lucida', 11),
                             background = 'white', image = self.voice_prompt_logo, compound = tkinter. LEFT)
-        self.voice_prompt_label.place(x = 50, y = 75)
-        self.voice_prompt_value = tkinter.StringVar(self.window,
-                            'enabled' if self.medbot.voice_prompt_enabled == True else 'disabled')
-        tkinter.Radiobutton(self.window, text = 'Enable', variable = self.voice_prompt_value,
-                            value = 'enabled', command = self.set_voice_prompt,
-                            background = 'white').place(x = 80, y = 100)
-        tkinter.Radiobutton(self.window, text = 'Disable', variable = self.voice_prompt_value,
-                            value = 'disabled', command = self.set_voice_prompt,
-                            background = 'white').place(x = 160, y = 100)
+        self.voice_prompt_label.place(x = 50, y = 65)
+
+        self.voice_prompt_enabled = tkinter.StringVar()
+        self.voice_prompt_enabled.set("Enabled")
+        self.voice_prompt_dropdown = ttk.Combobox(self.window, textvariable = self.voice_prompt_enabled)
+        self.voice_prompt_dropdown['values'] = ['Enabled', 'Disabled']
+        self.voice_prompt_dropdown['state'] = 'readonly'
+        self.voice_prompt_dropdown.place(x = 225, y = 65)
+
+        self.voice_language_logo = ImageTk.PhotoImage(Image.open('images/language.png').resize((16,16)))
+        self.voice_language_label = tkinter.Label(self.window, text = ' Language', font = ('Lucida',11),
+                            background = 'white', image = self.voice_language_logo, compound = tkinter.LEFT)
+        self.voice_language_label.place(x = 50, y = 95)
+
+        self.voice_language = tkinter.StringVar()
+        self.voice_language.set('english')
+        self.voice_language_dropdown = ttk.Combobox(self.window, textvariable = self.voice_language)
+        self.voice_language_dropdown['values'] = ['English', 'Filipino']
+        self.voice_language_dropdown['state'] = 'readonly'
+        self.voice_language_dropdown.place(x = 225, y = 95)
+
+        self.voice_gender_logo = ImageTk.PhotoImage(Image.open('images/gender.png').resize((16,16)))
+        self.voice_gender_label = tkinter.Label(self.window, text = ' Gender', font = ('Lucida',11),
+                            background = 'white', image = self.voice_gender_logo, compound = tkinter.LEFT)
+        self.voice_gender_label.place(x = 50, y = 125)
+
+        self.voice_gender = tkinter.StringVar()
+        self.voice_gender.set('male')
+        self.voice_gender_dropdown = ttk.Combobox(self.window, textvariable = self.voice_gender)
+        self.voice_gender_dropdown['values'] = ['Male', 'Female']
+        self.voice_gender_dropdown['state'] = 'readonly'
+        self.voice_gender_dropdown.place(x = 225, y = 125)
+
+        self.voice_volume_logo = ImageTk.PhotoImage(Image.open('images/volume.png').resize((16,16)))
+        self.voice_volume_label = tkinter.Label(self.window, text = ' Volume', font = ('Lucida',11),
+                            background = 'white', image = self.voice_volume_logo, compound = tkinter.LEFT)
+        self.voice_volume_label.place(x = 50, y = 160)
+
+        self.voice_volume = tkinter.IntVar()
+        self.voice_volume_slider = tkinter.Scale(self.window, from_ = 0, to = 100, orient = 'horizontal', 
+                            variable = self.voice_volume, background = 'white', troughcolor = 'white',
+                            length = 135, highlightbackground= 'white', width = 10,
+                            command = self.set_voice_volume)
+        self.voice_volume_slider.place(x = 225, y = 150)
+
+        self.voice_rate_logo = ImageTk.PhotoImage(Image.open('images/rate.png').resize((16,16)))
+        self.voice_rate_label = tkinter.Label(self.window, text = ' Voice Rate', font = ('Lucida',11),
+                            background = 'white', image = self.voice_rate_logo, compound = tkinter.LEFT)
+        self.voice_rate_label.place(x = 50, y = 200)
+
+        self.voice_rate = tkinter.IntVar()
+        self.voice_rate_slider = tkinter.Scale(self.window, from_ = 0, to = 150, orient = 'horizontal', 
+                            variable = self.voice_rate, background = 'white', troughcolor = 'white',
+                            length = 135, highlightbackground= 'white', width = 10,
+                            command = self.set_voice_rate)
+        self.voice_rate_slider.place(x = 225, y = 190)
 
         self.voice_command_logo = ImageTk.PhotoImage(Image.open('images/microphone.png').resize((16,16)))
         self.voice_command_label = tkinter.Label(self.window, text = ' Voice Command', font = ('Lucida', 11),
                             background = 'white', image = self.voice_command_logo, compound = tkinter.LEFT)  
-        self.voice_command_label.place(x = 50, y = 150)
-        self.voice_command_value = tkinter.StringVar(self.window,
-                            'enabled' if self.medbot.voice_command_enabled == True else 'disabled')
-        tkinter.Radiobutton(self.window, text = 'Enable', variable = self.voice_command_value,
-                            value = 'enabled', command = self.set_voice_command,
-                            background = 'white').place(x = 80, y = 175)
-        tkinter.Radiobutton(self.window, text = 'Disable', variable = self.voice_command_value,
-                            value = 'disabled', command = self.set_voice_command,
-                            background = 'white').place(x = 160, y = 175)
+        self.voice_command_label.place(x = 50, y = 240)
 
-    def set_voice_prompt(self):
-        temp = self.voice_prompt_value.get()
-        if(temp == 'disabled'):
-            value = False
-        else:
-            value = True
-        self.medbot.set_voice_prompt_enabled(value)
-        self.save_config('voice_prompt', value)
-        print('Voice prompt set to ' + str(value))
+        self.voice_command_enabled = tkinter.StringVar()
+        self.voice_command_enabled.set("Enabled")
+        self.voice_command_dropdown = ttk.Combobox(self.window, textvariable = self.voice_command_enabled)
+        self.voice_command_dropdown['values'] = ['Enabled', 'Disabled']
+        self.voice_command_dropdown['state'] = 'readonly'
+        self.voice_command_dropdown.place(x = 225, y = 240)
 
-    def set_voice_command(self):
-        temp = self.voice_command_value.get()
-        if(temp == 'disabled'):
-            value = False
-        else:
-            value = True
-        self.medbot.set_voice_command_enabled(value)
-        self.save_config('voice_command', value)
-        print('Voice command set to ' + str(value))
+        self.microphone_device_logo = ImageTk.PhotoImage(Image.open('images/microphone2.png').resize((16,16)))
+        self.microphone_device_label = tkinter.Label(self.window, text = ' Microphone Device', font = ('Lucida',11),
+                            background = 'white', image = self.microphone_device_logo, compound = tkinter.LEFT)
+        self.microphone_device_label.place(x = 50, y = 270)
 
-    def save_config(self, key, value):
+        self.microphone_device = tkinter.IntVar()
+        self.microphone_device_dropdown = ttk.Combobox(self.window, textvariable = self.microphone_device)
+        self.microphone_device_dropdown['values'] = [device for device in self.medbot.get_available_microphones()]
+        self.microphone_device_dropdown['state'] = 'readonly'
+        self.microphone_device_dropdown.place(x = 225, y = 270)
+
+        self.load_config()
+        self.voice_prompt_dropdown.bind('<<ComboboxSelected>>', self.set_voice_prompt)
+        self.voice_language_dropdown.bind('<<ComboboxSelected>>', self.set_voice_language)
+        self.voice_gender_dropdown.bind('<<ComboboxSelected>>', self.set_voice_gender)
+        self.voice_command_dropdown.bind('<<ComboboxSelected>>', self.set_voice_command)
+        self.microphone_device_dropdown.bind('<<ComboboxSelected>>', self.set_microphone_index)
+
+    def load_config(self):
         with open('config.yml', 'r') as file:
             config = yaml.safe_load(file)
-        config['medbot']['settings'][key] = value
+        voice_command_enabled = config['medbot']['settings']['voice_command']
+        voice_prompt_enabled = config['medbot']['settings']['voice_prompt']
+        speaker_language = config['medbot']['speaker']['language']
+        speaker_rate = config['medbot']['speaker']['rate']
+        speaker_volume = config['medbot']['speaker']['volume']
+        speaker_gender = config['medbot']['speaker']['gender']
+        microphone_index = config['medbot']['microphone']['index']
+        if(type(voice_command_enabled) != bool):
+            raise Exception('Voice command setting value error. Must be boolean')
+        if(type(voice_prompt_enabled) != bool):
+            raise Exception('Voice prompt setting value error. Must be boolean')
+        if(voice_prompt_enabled):
+            voice_prompt = 'Enabled'
+        else:
+            voice_prompt = 'Disabled'
+        self.voice_command_enabled.set(voice_prompt)
+        self.voice_language.set(speaker_language.upper())
+        self.voice_gender.set(speaker_gender.upper())
+        self.voice_rate.set(speaker_rate)
+        self.voice_volume.set(speaker_volume)
+        if(voice_command_enabled):
+            voice_command = 'Enabled'
+        else:
+            voice_command = 'Disabled'
+        self.voice_command_enabled.set(voice_command)
+        self.microphone_device.set(microphone_index)
+
+    def set_voice_prompt(self):
+        temp = self.voice_prompt_enabled.get()
+        if(temp == 'Enabled'):
+            value = True
+            self.voice_language_dropdown['state'] = 'readonly'
+            self.voice_gender_dropdown['state'] = 'readonly'
+            self.voice_rate_slider['state'] = 'normal'
+            self.voice_volume_slider['state'] = 'normal'
+        else:
+            value = False
+            self.voice_language_dropdown['state'] = 'disabled'
+            self.voice_gender_dropdown['state'] = 'disabled'
+            self.voice_rate_slider['state'] = 'disabled'
+            self.voice_volume_slider['state'] = 'disabled'
+        self.medbot.set_voice_prompt_enabled(value)
+        self.save_config('settings', 'voice_prompt', value)
+        print('Voice prompt set to ' + str(value))
+
+    def set_voice_language(self):
+        language = self.voice_language.get().lower()
+        self.medbot.set_voice_language(language)
+        self.save_config('speaker', 'language', language)
+
+    def set_voice_gender(self):
+        gender = self.voice_gender.get().lower()
+        self.medbot.set_voice_gender(gender)
+        self.save_config('speaker', 'gender', gender)
+
+    def set_voice_rate(self, event):
+        rate = self.voice_rate.get()
+        self.medbot.set_voice_rate(rate)
+        self.save_config('speaker', 'rate', rate)
+
+    def set_voice_volume(self, event):
+        volume = self.voice_volume.get()
+        self.medbot.set_voice_volume(volume)
+        self.save_config('speaker', 'volume', volume)
+        
+    def set_voice_command(self):
+        temp = self.voice_command_enabled.get()
+        if(temp == 'Enabled'):
+            value = True
+            self.microphone_device_dropdown['state'] = 'readonly'
+        else:
+            value = False
+            self.microphone_device_dropdown['state'] = 'disabled'
+        self.medbot.set_voice_command_enabled(value)
+        self.save_config('settings', 'voice_command', value)
+        print('Voice command set to ' + str(value))
+
+    def set_microphone_index(self):
+        index = self.microphone_device.get()
+        self.medbot.set_microphone(index)
+        self.save_config('microphone', 'index', index)
+
+    def save_config(self, parent, key, value):
+        with open('config.yml', 'r') as file:
+            config = yaml.safe_load(file)
+        config['medbot'][parent][key] = value
         with open('config.yml', 'w') as file:
             yaml.dump(config, file)
 
@@ -158,9 +288,11 @@ class MedbotGUIMain():
         self.window.configure(background = 'white')
 
         self.window_launched = False
+        self.wait_thread_started = False
         self.operation_started = False
         self.operation_completed = False
         self.animation_timer = 1
+        self.waiting_thread = Thread(target=self.medbot.wait_body_check())
         self.oximeter_thread = Thread(target = self.medbot.start_oximeter)
         self.bp_thread = Thread(target = self.medbot.start_blood_pressure_monitor)
         self.voice_prompt_started = False
@@ -235,8 +367,9 @@ class MedbotGUIMain():
             elif(self.animation_timer == 0):
                 self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + '.')
                 self.animation_timer = 1
-                # For testing only, use the communication with Arduino instead
-                self.medbot.body_check_complete() 
+                if(not self.wait_thread_started):
+                    self.wait_thread_started = True
+                    self.waiting_thread.start()
             time.sleep(0.5)
 
         # Check if body check operation is completed but the measuring operation has not started
