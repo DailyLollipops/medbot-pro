@@ -262,14 +262,17 @@ class Medbot:
     def get_arduino_response(self, return_string: bool = False, timeout: float = 0):
         '''
             Get the Arduino response if available \n
+            If `return_string` is `true`, returns a
+            formatted string, otherwise returns the raw
+            arduino string response \n
             Timeout could be set to listen for response
             within the timeout duration. If `timeout` is
-            set to 0, function will execute one time \n
+            set to 0, function will execute one time.
             Setting `timeout` to 0 may return empty string
             and recommended to call in a loop \n
             Possible response:
             - `0` Body Check Completed
-            - `1` Sanitize Completed`
+            - `1` Sanitize Completed
         '''
         if(timeout <= 0):
             response = self.arduino.readline().decode('utf-8').rstrip()
