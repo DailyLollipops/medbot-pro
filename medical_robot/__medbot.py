@@ -218,13 +218,12 @@ class Medbot:
         '''
         if(self.body_check_in_progress):
             while(self.body_check_in_progress):
-                if(self.arduino.inWaiting > 0):
-                    response = self.arduino.readline()
-                    if(response == 'Body Check Complete'):
-                        self.body_check_started = False
-                        self.body_check_in_progress = False
-                        self.body_check_completed = True
-                        return True
+                response = self.get_arduino_response()
+                if(response == '0'):
+                    self.body_check_started = False
+                    self.body_check_in_progress = False
+                    self.body_check_completed = True
+                    return True
         else:
             raise Exception('Body check is not started')
 
