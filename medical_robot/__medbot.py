@@ -281,6 +281,8 @@ class Medbot:
             now_time = datetime.timestamp(datetime.now())
             while((now_time - start_time) < timeout + 0.1):
                 response = self.arduino.readline().decode('utf-8').rstrip()
+                if(response != ''):
+                    break
                 now_time = datetime.timestamp(datetime.now())
             if((start_time - now_time) > timeout and response == ''):
                 raise Exception('Timeout reached')
