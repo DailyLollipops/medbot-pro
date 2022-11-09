@@ -305,7 +305,7 @@ class Medbot:
             - `2` Body Release
             - `3` Start Sanitize
         '''
-        commands = [0, 1, 2, 3]
+        commands = [0, 1, 2, 3, 9]
         if(command in commands):
             while True:
                 self.arduino.write(bytes(str(command)+'\n','utf-8'))
@@ -351,7 +351,7 @@ class Medbot:
             `pulse_rate_from_bpm` property to true by direct or by calling
             `set_pulse_rate_from_bpm(True)`.
         '''
-        self.arduino.write(bytes('9', 'utf-8'))
+        self.send_command(9)
         time.sleep(self.start_blood_pressure_monitor_delay)
         blood_pressure_monitor = Microlife_BTLE()
         blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)

@@ -12,19 +12,18 @@ const int oximeterTouchSensor = 7;
 // Blood Pressure Monitor components pinout
 const int stepsPerRevolution = 2038;
 Stepper cuffStepper = Stepper(stepsPerRevolution, 8, 10, 9, 11);
-const int cuffPiezo = 12;
-const int bpmSolenoid = 13;
+const int cuffPiezo = A0;
+const int bpmSolenoid = 12;
 
 // Global variables
 String command = "";
 int current_command = -1;
 int sanitizerTime = 2000; //Sanitizer livetime in millis
 bool oximeterLocked = false;
-int piezoThreshold = 180;
 bool cuffLocked = false;
 int roll = 0;
 int motorState = 0;
-const int cuffThreshold = 180;
+const int cuffThreshold = 100;
 
 void setup() {
   // Initialize Sanitizer Components
@@ -59,6 +58,10 @@ void loop() {
     current_command = 3;
     command = "";
   }
+  else if(command == "9"){
+    current_command = 9;
+    command = ""
+  }
 
   /* 
     Main Loop 
@@ -67,13 +70,19 @@ void loop() {
   if(current_command == -1){
     command = receiveCommand();
   }
+  
   // Start body check
   else if(current_command == 0){
-    if(oximeterLocked){
+    if(oximeterLocked && cuffLocked){
+      sendResponse("0");
       current_command = -1;
     }
-    oximeterLock();
-//    cuffLock();
+    else if(!oximeterLocked){
+      oximeterLock();
+    }
+    else if(!cuffLocked){
+      cuffLock()
+    }
   }
 
   // Stop body check or Body release
@@ -86,6 +95,13 @@ void loop() {
   // Start sanitize
   else if(current_command == 3){
     sanitize();
+    sendResponse("1");
+    current_command = -1;
+  }
+
+  // Start Bpm
+  else if(current_command == 9){
+    startBPM();
     current_command = -1;
   }
 }
@@ -141,7 +157,13 @@ void sanitize(){
   digitalWrite(sanitizerRelay, HIGH);
   delay(1000);
   digitalWrite(sanitizerRelay, LOW);
-  sendResponse("1");
+}
+
+void startBPM(){
+  digitalWrite(bpmSolenoid, HIGH)
+  delay(250)
+  digitalWrite(bpmSolenoid, LOW)
+  delay(1000)
 }
 
 void sendResponse(String response){
