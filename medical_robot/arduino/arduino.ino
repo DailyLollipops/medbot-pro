@@ -60,7 +60,7 @@ void loop() {
   }
   else if(command == "9"){
     current_command = 9;
-    command = ""
+    command = "";
   }
 
   /* 
@@ -70,7 +70,7 @@ void loop() {
   if(current_command == -1){
     command = receiveCommand();
   }
-  
+
   // Start body check
   else if(current_command == 0){
     if(oximeterLocked && cuffLocked){
@@ -81,7 +81,7 @@ void loop() {
       oximeterLock();
     }
     else if(!cuffLocked){
-      cuffLock()
+      cuffLock();
     }
   }
 
@@ -160,10 +160,10 @@ void sanitize(){
 }
 
 void startBPM(){
-  digitalWrite(bpmSolenoid, HIGH)
-  delay(250)
-  digitalWrite(bpmSolenoid, LOW)
-  delay(1000)
+  digitalWrite(bpmSolenoid, HIGH);
+  delay(250);
+  digitalWrite(bpmSolenoid, LOW);
+  delay(1000);
 }
 
 void sendResponse(String response){
