@@ -2,40 +2,50 @@
 #include <Servo.h>
 
 // Sanitize components pinout
-const int sanitizerRelay = 5;
+const int sanitizerRelay = 2;
 
 // Oximeter components pinout
-Servo oximeterServo;
-const int oximeterServoPin = 6;
+const int stepsPerRevolution = 2038;
+Stepper oximeterStepper = Stepper(stepsPerRevolution, 3, 5, 4, 6);
 const int oximeterTouchSensor = 7;
 
 // Blood Pressure Monitor components pinout
-const int stepsPerRevolution = 2038;
-Stepper cuffStepper = Stepper(stepsPerRevolution, 8, 10, 9, 11);
 const int cuffPiezo = A0;
-const int bpmSolenoid = 12;
+const int armPiezo = A1;
+const int bpmSolenoid = 8;
+const int cuffStepperEnPin = 9;
+const int cuffStepperDirPin = 10;
+const int cuffStepperStepPin = 11;
 
 // Global variables
 String command = "";
 int current_command = -1;
 int sanitizerTime = 2000; //Sanitizer livetime in millis
+bool fingerDetected = false;
+bool armDetected = true;
 bool oximeterLocked = false;
 bool cuffLocked = false;
+int oximeterStepperSteps = 200;
 int roll = 0;
 int motorState = 0;
-const int cuffThreshold = 100;
+int armThreshold = 30;
+int cuffThreshold = 100;
 
 void setup() {
   // Initialize Sanitizer Components
   pinMode(sanitizerRelay, OUTPUT);
 
   // Initialize Oximeter Components
-  oximeterServo.attach(oximeterServoPin);
-  oximeterServo.write(135);
   pinMode(oximeterTouchSensor, INPUT);
+  oximeterStepper.setSpeed(10);
+
+  // Initialize BPM Components
   pinMode(cuffPiezo, INPUT);
+  pinMode(armPiezo, INPUT);
   pinMode(bpmSolenoid, OUTPUT);
-  cuffStepper.setSpeed(20);
+  pinMode(cuffStepperEnPin, OUTPUT);
+  pinMode(cuffStepperDirPin, OUTPUT);
+  pinMode(cuffStepperStepPin, OUTPUT);
 
   // Initialize serial
   Serial.begin(9600);
@@ -73,15 +83,23 @@ void loop() {
 
   // Start body check
   else if(current_command == 0){
-    if(oximeterLocked && cuffLocked){
-      sendResponse("0");
-      current_command = -1;
+    if(!fingerDetected){
+      detectFinger();
     }
-    else if(!oximeterLocked){
-      oximeterLock();
+    if(!armDetected){
+      detectArm();
     }
-    else if(!cuffLocked){
-      cuffLock();
+    if(fingerDetected && armDetected){
+      if(oximeterLocked && cuffLocked){
+        sendResponse("0");
+        current_command = -1;
+      }
+      else if(!oximeterLocked){
+        oximeterLock();
+      }
+      else if(!cuffLocked){
+        cuffLock();
+      }
     }
   }
 
@@ -106,39 +124,60 @@ void loop() {
   }
 }
 
+void detectFinger(){
+  int touchSensorValue = digitalRead(oximeterTouchSensor);
+  if(touchSensorValue == HIGH){
+    fingerDetected = true;
+    sendResponse("9");
+  }
+}
+
+void detectArm(){
+  int piezoValue = analogRead(armPiezo);
+  if(piezoValue < armThreshold){
+    armDetected = true;
+    sendResponse("8");
+  }
+}
+
 void oximeterLock(){
   int touchSensorValue = digitalRead(oximeterTouchSensor);
   if(touchSensorValue == HIGH && !oximeterLocked){
-    oximeterServo.write(-90);
+    oximeterStepper.step(oximeterStepperSteps);
     oximeterLocked = true;
   }
 }
 
 void oximeterRelease(){
   if(oximeterLocked){
-    oximeterServo.write(135);    
+    oximeterStepper.step(-oximeterStepperSteps);    
   }
   oximeterLocked = false;    
 }
 
 void cuffLock(){
-  int piezoValue = analogRead(cuffPiezo);
   if(!cuffLocked){
-    if(piezoValue < piezoThreshold){
-      cuffStepper.step(-stepsPerRevolution);
-      piezoValue = analogRead(cuffPiezo);
+    digitalWrite(cuffStepperDirPin, LOW);
+    int piezoValue = analogRead(cuffPiezo);
+    while(piezoValue > cuffThreshold){
+      digitalWrite(cuffStepperStepPin, HIGH);
+      delayMicroseconds(2000);
+      digitalWrite(cuffStepperStepPin, LOW);
+      delayMicroseconds(2000);
       roll++;
     }
-    else{
-      cuffLocked = true;
-    }    
+    cuffLocked = true;
   }
 }
 
 void cuffRelease(){
   if(roll > 0){
+    digitalWrite(cuffStepperDirPin, HIGH);
     for(int i = 0; i < roll; i++){
-      cuffStepper.step(stepsPerRevolution);
+      digitalWrite(cuffStepperStepPin, HIGH);
+      delayMicroseconds(2000);
+      digitalWrite(cuffStepperStepPin, LOW);
+      delayMicroseconds(2000);cuffStepper.step(stepsPerRevolution);
     }
     roll = 0;
   }
