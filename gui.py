@@ -292,6 +292,8 @@ class MedbotGUIMain():
         self.operation_started = False
         self.operation_completed = False
         self.animation_timer = 1
+        self.finger_notification_fixed = False
+        self.arm_notification_fixed = False
         self.waiting_thread = Thread(target=self.medbot.wait_body_check())
         self.oximeter_thread = Thread(target = self.medbot.start_oximeter)
         self.bp_thread = Thread(target = self.medbot.start_blood_pressure_monitor)
@@ -304,6 +306,18 @@ class MedbotGUIMain():
         self.printer_choice_thread_started = False
         self.window_completed = False
         self.speaker_refreshed = False
+
+        self.transparent_icon = ImageTk.PhotoImage(Image.open('images/transparent.png').resize((16,16)))
+
+        self.finger_notification_holder = tkinter.Canvas(self.window, width = 24, height = 24)
+        self.finger_icon = ImageTk.PhotoImage(Image.open('images/finger.png').resize((16,16)))
+        self.finger_notification_holder.create_image(4, 4, image = self.finger_icon, anchor = tkinter.NW)
+        self.finger_notification_holder.place(x = 700, y = 10)
+
+        self.arm_notification_holder = tkinter.Canvas(self.window, width = 24, height = 24)
+        self.arm_icon = ImageTk.PhotoImage(Image.open('images/arm.png').resize((16,16)))
+        self.arm_notification_holder.create_image(4, 4, image = self.arm_icon, anchor = tkinter.NW)
+        self.arm_notification_holder.place(x = 730, y = 10)
 
         self.display = tkinter.Canvas(self.window, width = 700, height = 270)
         self.display_text = self.display.create_text(350, 140, text = 'Initializing Please Wait',
@@ -363,13 +377,28 @@ class MedbotGUIMain():
                 self.animation_timer = 2
             elif(self.animation_timer == 2):
                 self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + '  .')
+                self.animation_timer = 3
+            elif(self.animation_timer == 3):
+                self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + '   .')
                 self.animation_timer = 0
             elif(self.animation_timer == 0):
                 self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + '.')
                 self.animation_timer = 1
-                if(not self.wait_thread_started):
-                    self.wait_thread_started = True
-                    self.waiting_thread.start()
+            if(not self.wait_thread_started):
+                self.wait_thread_started = True
+                self.waiting_thread.start()
+            if(not self.medbot.finger_detected and self.animation_timer <= 1):
+                self.finger_notification_holder.create_image(4, 4, image = self.finger_icon, anchor = tkinter.NW)
+            elif(not self.medbot.finger_detected and self.animation_timer > 1):
+                self.finger_notification_holder.create_image(4, 4, image = self.transparent_icon, anchor = tkinter.NW)
+            elif(self.medbot.finger_detected and not self.finger_notification_fixed):
+                self.finger_notification_holder.create_image(4, 4, image = self.finger_icon, anchor = tkinter.NW)
+            if(not self.medbot.arm_detected and self.animation_timer <= 1):
+                self.arm_notification_holder.create_image(4, 4, image = self.arm_icon, anchor = tkinter.NW)
+            elif(not self.medbot.arm_detected and self.animation_timer > 1):
+                self.arm_notification_holder.create_image(4, 4, image = self.transparent_icon, anchor = tkinter.NW)
+            elif(self.medbot.arm_detected and not self.arm_notification_fixed):
+                self.arm_notification_holder.create_image(4, 4, image = self.arm_icon, anchor = tkinter.NW)
             time.sleep(0.5)
 
         # Check if body check operation is completed but the measuring operation has not started
