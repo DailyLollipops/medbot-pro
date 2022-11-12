@@ -63,6 +63,8 @@ class Medbot:
         self.pulse_rate_from_bpm = False
         self.current_user = None,
         self.has_user = False
+        self.finger_detected = False
+        self.arm_detected = False
         self.body_check_started = False
         self.body_check_in_progress = False
         self.body_check_completed = False
@@ -190,6 +192,8 @@ class Medbot:
         '''
             Clears all body checks history and the cached current readings
         '''
+        self.finger_detected = False
+        self.arm_detected = False
         self.body_check_completed = False
         self.body_check_started = False
         self.body_check_in_progress = False
@@ -224,6 +228,10 @@ class Medbot:
                     self.body_check_in_progress = False
                     self.body_check_completed = True
                     return True
+                elif(response == '9'):
+                    self.finger_detected = True
+                elif(response == '8'):
+                    self.arm_detected = True
         else:
             raise Exception('Body check is not started')
 
