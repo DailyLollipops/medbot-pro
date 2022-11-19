@@ -7,7 +7,7 @@ from Crypto.Util.Padding import unpad
 from Crypto.Cipher import AES
 from base64 import b64encode
 from base64 import b64decode
-from escpos.printer import Usb
+from escpos.connections import getUSBPrinter
 from datetime import datetime
 from .__max30102 import MAX30102
 from .__bp3gy12n import Microlife_BTLE
@@ -56,7 +56,10 @@ class Medbot:
         self.voice_rate = '100'
         self.voice_volume = 100
         self.speaker = pyttsx3.init()
-        self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
+        self.printer = getUSBPrinter()(idVendor=0x28e9,
+                          idProduct=0x0289,
+                          inputEndPoint=0x81,
+                          outputEndPoint=0x01)
         try:
             self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
         except:
@@ -533,7 +536,7 @@ class Medbot:
         while(not success):
             try:
                 self.printer.text(content)
-                self.printer.cut()
+                self.printer.lf()
                 success = True
             except:
                 break
