@@ -1,16 +1,16 @@
 medbot:
   database:
-    host: 'sql.freedb.tech'
-    database: 'freedb_medbot'
-    user: 'freedb_medbot'
-    password: 'p5CdUCY6w7!*Eg?'
+    host: 'sql624.main-hosting.eu'
+    database: 'u234071176_medbot'
+    user: 'u234071176_medbot'
+    password: 'Medbot@2022'
   settings:
     voice_command: true
     voice_prompt: true
   speaker:
     id: 'english'
     language: 'english'
-    rate: 75 # default: 130
+    rate: 40 # default: 130
     volume: 1 # default: 1
     voice: 'male' # values: 'male' or 'female'
   microphone:

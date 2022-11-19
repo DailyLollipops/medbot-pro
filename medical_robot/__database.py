@@ -31,6 +31,12 @@ class Database:
         except:
             raise Exception('Error connecting to database')
 
+    def reconnect(self):
+                    self.connection = mysql.connector.connect(host = self.host,
+                                        database = self.database,
+                                        user = self.user,
+                                        password = self.password)
+
     def get_user_info(self, user: User):
         '''
             Get user info from a User object \n
@@ -128,8 +134,25 @@ class Database:
         '''
             Insert record to a table in the database
         '''
+        self.reconnect()
         columns = self.__get_columns_name(table)
         cursor = self.connection.cursor()
         query = f'''INSERT INTO {table}({columns}) VALUES ({'%s, ' * (len(values)-1)}%s)'''
         cursor.execute(query, values)
+        cursor.close()
         self.connection.commit()
+
+    def insert_reading(self, id: int, pulse_rate: int, blood_saturation: int, blood_pressure: int, systolic: int, diastolic: int):
+        '''
+            ### Medbot table specific
+            Insert values to readings table
+        '''
+        self.reconnect()
+        cursor = self.connection.cursor()
+        now = datetime.now()
+        date_now = now.strftime('%Y-%m-%d %H:%M:%S')
+        query = '''INSERT INTO readings(user_id,pulse_rate,blood_saturation,blood_pressure,systolic,diastolic,created_at,updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)'''
+        values = (id, pulse_rate,blood_saturation,blood_pressure,systolic,diastolic,date_now,date_now)
+        cursor.execute(query, values)
+        self.connection.commit()
+        cursor.close()

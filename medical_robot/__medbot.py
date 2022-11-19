@@ -57,9 +57,12 @@ class Medbot:
         self.voice_volume = 100
         self.speaker = pyttsx3.init()
         self.printer = Usb(0x28e9, 0x0289, 0, 0x81, 0x01)
-        self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
-        self.oximeter_samples = 5
-        self.start_blood_pressure_monitor_delay = 10
+        try:
+            self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
+        except:
+            self.arduino = Serial('/dev/ttyACM1', 9600, timeout = 1)
+        self.oximeter_samples = 1
+        self.start_blood_pressure_monitor_delay = 45
         self.pulse_rate_from_bpm = False
         self.current_user = None,
         self.has_user = False
@@ -88,7 +91,7 @@ class Medbot:
         speaker_language = config['medbot']['speaker']['language']
         speaker_rate = config['medbot']['speaker']['rate']
         speaker_volume = config['medbot']['speaker']['volume']
-        speaker_gender = config['medbot']['speaker']['gender']
+        speaker_gender = config['medbot']['speaker']['voice']
         microphone_index = config['medbot']['microphone']['index']
         if(type(voice_command_enabled) != bool):
             raise Exception('Voice command setting value error. Must be boolean')
@@ -96,8 +99,11 @@ class Medbot:
             raise Exception('Voice prompt setting value error. Must be boolean')
         self.voice_command_enabled = voice_command_enabled
         self.voice_prompt_enabled = voice_prompt_enabled
-        self.set_speaker_properties(id = speaker_id, language = speaker_language, rate = speaker_rate, volume = speaker_volume, voice = speaker_gender)
+        self.set_speaker_properties(id = speaker_id, language = speaker_language, rate = speaker_rate, volume = speaker_volume, gender = speaker_gender)
         self.set_microphone(microphone_index)
+
+    def reconnect(self):
+        self.database.reconnect()
 
     def __decodeframe(self, image):
         '''
@@ -210,7 +216,7 @@ class Medbot:
             Send command to the Arduino to start body check. \n
             Also includes the body lock operation invoked in the Arduino
         '''
-        self.send_command(0)
+        # self.send_command(0)
         self.body_check_started = True
         self.body_check_in_progress = True
 
@@ -320,6 +326,8 @@ class Medbot:
                 response = self.get_arduino_response()
                 if(response == 'ok'):
                     break
+                else:
+                    print(response)
         else:
             raise Exception('Unknown command')
 
@@ -332,16 +340,26 @@ class Medbot:
         pulse_rate_samples = []
         blood_saturation_samples = []
         sample_count = 1
-        while(sample_count < self.oximeter_samples):
-            red, ir = self.oximeter.read_sequential()
-            pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = calc_hr_and_spo2(ir[:100], red[:100])
-            if(pulse_rate_valid and blood_saturation_valid and sample_count <= 10):
-                pulse_rate_samples.append(pulse_rate)
-                blood_saturation_samples.append(blood_saturation)
-                sample_count = sample_count + 1
-                print(str(pulse_rate) + str(blood_saturation))
+        if(self.oximeter_samples == 1):
+            while(len(pulse_rate_samples) == 0):
+                red, ir = self.oximeter.read_sequential()
+                pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = calc_hr_and_spo2(ir[:100], red[:100])
+                if(pulse_rate_valid and blood_saturation_valid):
+                    pulse_rate_samples.append(pulse_rate)
+                    blood_saturation_samples.append(blood_saturation)
+                    print(str(pulse_rate) + str(blood_saturation))
+        else:
+            while(sample_count < self.oximeter_samples):
+                red, ir = self.oximeter.read_sequential()
+                pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = calc_hr_and_spo2(ir[:100], red[:100])
+                if(pulse_rate_valid and blood_saturation_valid and sample_count <= 10):
+                    pulse_rate_samples.append(pulse_rate)
+                    blood_saturation_samples.append(blood_saturation)
+                    sample_count = sample_count + 1
+                    print(str(pulse_rate) + str(blood_saturation))
         average_blood_saturation = round(sum(blood_saturation_samples)/len(blood_saturation_samples))
         self.current_reading['blood_saturation'] = average_blood_saturation
+        print('Finished')
         if(not self.pulse_rate_from_bpm):
             average_pulse_rate = round(sum(pulse_rate_samples)/len(pulse_rate_samples))
             self.current_reading['pulse_rate'] = average_pulse_rate
@@ -349,21 +367,34 @@ class Medbot:
         else:
             return average_blood_saturation
 
-    def start_blood_pressure_monitor(self):
+    def start_blood_pressure_monitor(self, retry_on_fail: bool = False):
         '''
             Send command to the Arduino to press the start button on the blood pressure monitor
             and fetches the last measurement \n
             Returns and cache systolic and diastolic if `pulse_rate_from_bpm` is `False
             otherwise returns and cache systolic, diastolic and pulse rate\n
+            If `retry_on_fail` is `True`, the medbot will restart getting data
+            from the bpm unit until a measurement is secured \n
             `Note:` if the you wants to get the pulse rate from the bpm, you need to set the
             `pulse_rate_from_bpm` property to true by direct or by calling
             `set_pulse_rate_from_bpm(True)`.
         '''
+        print('starting')
         self.send_command(9)
         time.sleep(self.start_blood_pressure_monitor_delay)
-        blood_pressure_monitor = Microlife_BTLE()
-        blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)
-        latest_measurement = blood_pressure_monitor.get_measurements()[-1]
+        if(retry_on_fail):
+            while True:
+                try:
+                    blood_pressure_monitor = Microlife_BTLE()
+                    blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)                          
+                    latest_measurement = blood_pressure_monitor.get_measurements()[-1]
+                    break
+                except:
+                    print('Retrying')
+        else:            
+            blood_pressure_monitor = Microlife_BTLE()
+            blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)                          
+            latest_measurement = blood_pressure_monitor.get_measurements()[-1]
         systolic = latest_measurement[1]
         diastolic = latest_measurement[2]
         self.current_reading['systolic'] = systolic
@@ -457,18 +488,25 @@ class Medbot:
             rating = 'High'
         return rating
 
-    def save_reading(self, pulse_rate: int, systolic: int, diastolic: int, blood_saturation: int):
+    def save_reading(self, pulse_rate: int, systolic: int, diastolic: int, blood_saturation: int, admin: bool = False, id: int = -1):
         '''
             Save readings to the database \n
-            Can be used to directly store specific readings to the database
+            Can be used to directly store specific readings to the database \n
+            Requires a logged user if `admin` is `False`, otherwise `id` should
+            should be specified
         '''
         blood_pressure = diastolic + ((systolic - diastolic)/3)
-        now = datetime.now()
-        date_now = now.strftime('%Y-%m-%d %H:%M:%S')
-        values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
-        self.database.insert_record('readings', values)
+        if(admin):
+            user_id = id
+        else:
+            user_id = self.current_user.id
+        try:
+            self.database.insert_reading(user_id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic)
+            return True
+        except:
+            return False
 
-    def save_current_readings(self):
+    def save_current_reading(self):
         '''
             Save the current cached readings to the database \n
             Does not reset the cached readings so multiple call to this
@@ -476,19 +514,17 @@ class Medbot:
             Throws an exception if one of the indicators does not have
             value
         '''
-        for key, value in self.current_reading:
-            if(value is None):
-                raise Exception(str(key) + 'is missing')
         pulse_rate = self.current_reading['pulse_rate']
         systolic = self.current_reading['systolic']
         diastolic = self.current_reading['diastolic']
         blood_saturation = self.current_reading['blood_saturation']
         blood_pressure = diastolic + ((systolic - diastolic)/3)
-        now = datetime.now()
-        date_now = now.strftime('%Y-%m-%d %H:%M:%S')
-        values = (self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic, date_now, date_now)
-        self.database.insert_record('readings', values)
-
+        try:
+            self.database.insert_reading(self.current_user.id,pulse_rate, blood_saturation, blood_pressure, systolic, diastolic)
+            return True
+        except:
+            return False
+        
     def print(self, content: str):
         '''
             Print some text on the thermal printer
@@ -780,7 +816,7 @@ class Medbot:
         self.body_check_completed = True
         self.body_check_in_progress = False
     
-    def test_write(self, text):
+    def debug_write(self, text):
         while True:
             self.arduino.write(bytes(text+'\n','utf-8'))
             response = self.test_read()
@@ -789,6 +825,28 @@ class Medbot:
                 break
         
 
-    def test_read(self):
+    def debug_read(self):
         response = self.arduino.read_until('\n').decode('utf-8').rstrip()
         return response
+
+    def debug_bp(self):
+        blood_pressure_monitor = Microlife_BTLE()
+        blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)
+        latest_measurement = blood_pressure_monitor.get_measurements()[-1]
+        print(latest_measurement)
+
+    def debug_save(self):
+        import mysql.connector
+        from datetime import datetime
+        connection = mysql.connector.connect(host = 'sql624.main-hosting.eu',
+                            database = 'u234071176_medbot',
+                            user = 'u234071176_medbot',
+                            password = 'Medbot@2022'
+                        )
+        cursor = connection.cursor()
+        now = datetime.now()
+        date_now = now.strftime('%Y-%m-%d %H:%M:%S')
+        query = '''INSERT INTO readings(user_id,pulse_rate,blood_saturation,blood_pressure,systolic,diastolic,created_at,updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)'''
+        values = (1,100,99,2,120,80,date_now,date_now)
+        cursor.execute(query, values)
+        connection.commit()
