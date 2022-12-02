@@ -213,6 +213,7 @@ class Medbot:
             'diastolic': None,
             'blood_saturation': None
         }
+        self.send_command(9)
 
     def start_body_check(self):
         '''
