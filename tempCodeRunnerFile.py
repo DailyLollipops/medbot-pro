@@ -1,1 +1,0 @@
-Pleases position your arm correctly
