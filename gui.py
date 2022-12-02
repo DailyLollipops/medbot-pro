@@ -446,6 +446,7 @@ class MedbotGUIMain():
         # Save reading to database
         elif(not self.oximeter_thread.is_alive() and self.bp_finished and self.operation_completed and not self.printer_prompted):
             print('OP5')
+            self.display.itemconfigure(self.display_text, text = 'Saving....')
             pulse_rate = self.medbot.get_current_pulse_rate()
             systolic = self.medbot.get_current_systolic()
             diastolic = self.medbot.get_current_diastolic()
@@ -528,6 +529,8 @@ Date:   {date_now}
 PR     {pulse_rate} bpm      {pulse_rate_rating}
 BP     {systolic}/{diastolic} mmHg   {blood_pressure_rating}
 Sp02   {blood_saturation} %         {blood_saturation_rating}
+        
+        
         """
             self.medbot.print(content)
         self.printer_responded = True
@@ -563,4 +566,5 @@ if __name__ == '__main__':
     database = medical_robot.Database(database_host,database,database_user,database_password)
     medbot = medical_robot.Medbot(database, microphone_index=1)
     medbot.load_config('config.yml')
+    medbot.pulse_rate_from_bpm = True
     MedbotGUI(medbot)
