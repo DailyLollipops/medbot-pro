@@ -322,7 +322,7 @@ class Medbot:
             - `2` Body Release
             - `3` Start Sanitize
         '''
-        commands = [0, 1, 2, 3, 9]
+        commands = [0, 1, 2, 3, 4, 9]
         if(command in commands):
             while True:
                 self.arduino.write(bytes(str(command)+'\n','utf-8'))
@@ -347,7 +347,7 @@ class Medbot:
             while(len(pulse_rate_samples) == 0):
                 red, ir = self.oximeter.read_sequential()
                 pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = calc_hr_and_spo2(ir[:100], red[:100])
-                if(pulse_rate_valid and blood_saturation_valid):
+                if(pulse_rate_valid and blood_saturation_valid and blood_saturation >= 90):
                     pulse_rate_samples.append(pulse_rate)
                     blood_saturation_samples.append(blood_saturation)
                     print(str(pulse_rate) + str(blood_saturation))
@@ -383,7 +383,7 @@ class Medbot:
             `set_pulse_rate_from_bpm(True)`.
         '''
         print('starting')
-        self.send_command(9)
+        self.send_command(4)
         time.sleep(self.start_blood_pressure_monitor_delay)
         if(retry_on_fail):
             while True:
@@ -812,6 +812,10 @@ class Medbot:
     #                  Debugging Functions                 #
     ########################################################
 
+    def debug_login(self):
+        qrdata = self.__scan_qrcode()
+        print(qrdata)
+        
     def body_check_complete(self):
         '''
             Forcefully invoke `body_check_completed` as `True`
