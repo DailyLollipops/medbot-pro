@@ -96,6 +96,7 @@ class Database:
         '''
             Verify and change user authenticated property to true
         '''
+        self.reconnect()
         password_bytes = user.password.encode('utf-8')
         record = self.get_user_info(user)
         stored_password = record['password'].encode('utf-8')
