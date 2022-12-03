@@ -51,36 +51,12 @@ void setup() {
 }
 
 void loop() {
-  if(command == "0"){
-    current_command = 0;
-    command = "";
-  }
-  else if(command == "1"){
-    current_command = 1;
-    command = "";
-  }
-  else if(command == "2"){
-    current_command = 2;
-    command = "";
-  }
-  else if(command == "3"){
-    current_command = 3;
-    command = "";
-  }
-  else if(command == "4"){
-    current_command = 4;
-    command = "";
-  }
-  else if(command == "9"){
-    current_command = 9;
-    command = "";
-  }
   /* 
     Main Loop 
   */
   // Command selector
   if(current_command == -1){
-    command = receiveCommand();
+    receiveCommand();
   }
 
   // Start body check
@@ -112,21 +88,25 @@ void loop() {
     current_command = -1;
   }
 
-  // Start sanitize
+  // Start sanitizer
   else if(current_command == 3){
     sanitize();
-    sendResponse("1");
     current_command = -1;
   }
-
-  // Start Bpm
+  
   else if(current_command == 4){
     startBPM();
     current_command = -1;
   }
 
-  // Reset global variables
+  // Start Bpm
   else if(current_command == 9){
+    reset();
+    current_command = -1;
+  }
+  
+  // Reset global variables
+  else if(current_command == 6){
     reset();
     current_command = -1;
   }
@@ -254,16 +234,15 @@ void reset(){
   fingerDetected = false;
   armDetected = false;   
 }
+
 void sendResponse(String response){
   Serial.println(response);    
 }
 
-String receiveCommand(){
-  if(!Serial.available()){
-    String sent = Serial.readStringUntil('\n');
-    if(sent != ""){
-      Serial.println("ok");
-      return sent;
-    }
+void receiveCommand(){
+  if(Serial.available()){
+    int sent = Serial.readStringUntil('\n').toInt();
+    Serial.println("ok");
+    current_command = sent;
   }
 }
