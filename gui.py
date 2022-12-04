@@ -3,10 +3,14 @@ from PIL import ImageTk,Image
 from threading import Thread
 from datetime import datetime
 from tkinter import ttk
+from itertools import count, cycle
+import urllib.request
 import medical_robot
 import tkinter
 import time
 import yaml
+
+medbot = None
 
 def show_message(window, title, message, timeout = 0):
     messagebox_container = tkinter.Toplevel(window)
@@ -14,6 +18,127 @@ def show_message(window, title, message, timeout = 0):
     if(timeout > 0):
         messagebox_container.after(timeout, messagebox_container.destroy)
     messagebox.showinfo(title, message, parent = messagebox_container)
+
+class MedbotGUIStartScreen:
+    def __init__(self):
+        self.window = tkinter.Tk()
+        self.window.geometry('300x120')
+        self.window.title('Starting Medbot')
+        self.internet_connected = False
+        self.configuration_checked = False
+        self.medbot_initialized = False
+        self.progressbar = ttk.Progressbar(
+            self.window,
+            orient='horizontal',
+            mode='determinate',
+            length=280
+        )
+        self.progressbar.grid(column=0, row=0, columnspan=2, padx=10, pady=20)
+
+        self.message_label = ttk.Label(self.window, text='Medbot Starting...')
+        self.message_label.grid(column=0, row=1, columnspan=2)
+
+        self.update()
+        self.window.mainloop()
+
+    def update(self):
+        if(not self.internet_connected):
+            if(self.check_internet()):
+                self.progressbar['value'] += 33
+                self.internet_connected = True
+                self.message_label.config(text='Checking configurations...')
+            else:
+                messagebox.askretrycancel('No internet connection','No internet connection detected!')
+        elif(self.internet_connected and not self.configuration_checked):
+            self.progressbar['value'] += 33
+            self.message_label.config(text='Medbot Initializing...')
+            self.configuration_checked = True
+        elif(self.configuration_checked and not self.medbot_initialized):
+            self.initialize_medbot()
+            self.progressbar['value'] += 33
+            self.message_label.config(text='Finishing Startup...')
+        elif(self.medbot_initialized):
+            #MedbotGUI()
+            self.window.destroy()
+            SplashScreen()
+        self.window.after(15, self.update)
+
+    def check_internet(self):
+        try:
+            urllib.request.urlopen('http://google.com')
+            return True
+        except:
+            return False
+
+    def initialize_medbot(self):
+        global medbot
+        while(not self.medbot_initialized):
+            try:
+                with open('config.yml', 'r') as file:
+                    config = yaml.safe_load(file)
+                database_host = config['medbot']['database']['host']
+                database = config['medbot']['database']['database']
+                database_user = config['medbot']['database']['user']
+                database_password = config['medbot']['database']['password']
+                database = medical_robot.Database(database_host,database,database_user,database_password)
+                medbot = medical_robot.Medbot(database, microphone_index=1)
+                medbot.load_config('config.yml')
+                medbot.pulse_rate_from_bpm = True
+                self.medbot_initialized = True
+            except:
+                self.message_label.config(text='Retrying')
+
+class SplashScreen():
+    def __init__(self):
+        self.window = tkinter.Tk()
+        self.window.title('Splash Screen')
+        self.splash = Splash(self.window)
+        self.splash.pack()
+        self.splash.load('images/splash.gif')
+        self.window.mainloop()
+
+class Splash(tkinter.Label):
+    """
+    A Label that displays images, and plays them if they are gifs
+    :im: A PIL Image instance or a string filename
+    """
+    def load(self, im):
+        if isinstance(im, str):
+            im = Image.open(im)
+        frames = []
+ 
+        try:
+            for i in count(1):
+                frames.append(ImageTk.PhotoImage(im.copy()))
+                im.seek(i)
+        except EOFError:
+            pass
+        self.frames = cycle(frames)
+        self.counter = 1
+        try:
+            self.delay = im.info['duration']
+        except:
+            self.delay = 100
+ 
+        if len(frames) == 1:
+            self.config(image=next(self.frames))
+        else:
+            self.next_frame()
+ 
+    def unload(self):
+        self.config(image=None)
+        self.frames = None
+ 
+    def next_frame(self):
+        if self.frames:
+            self.counter += 1
+            if self.counter >= 80:
+                global medbot
+                self.master.destroy()
+                MedbotGUI(medbot)
+            else:
+                self.config(image=next(self.frames))
+                self.after(self.delay, self.next_frame)
 
 class MedbotGUI:
     def __init__(self, medbot: medical_robot.Medbot):
@@ -556,15 +681,16 @@ Sp02   {blood_saturation} %         {blood_saturation_rating}
         self.voice_command_fail_message = config['medbot']['gui']['printer_prompt']['on_failure_message'] 
 
 if __name__ == '__main__':
-    with open('config.yml', 'r') as file:
-        config = yaml.safe_load(file)
-    database_host = config['medbot']['database']['host']
-    database = config['medbot']['database']['database']
-    database_user = config['medbot']['database']['user']
-    database_password = config['medbot']['database']['password']
+    # with open('config.yml', 'r') as file:
+    #     config = yaml.safe_load(file)
+    # database_host = config['medbot']['database']['host']
+    # database = config['medbot']['database']['database']
+    # database_user = config['medbot']['database']['user']
+    # database_password = config['medbot']['database']['password']
 
-    database = medical_robot.Database(database_host,database,database_user,database_password)
-    medbot = medical_robot.Medbot(database, microphone_index=1)
-    medbot.load_config('config.yml')
-    medbot.pulse_rate_from_bpm = True
-    MedbotGUI(medbot)
+    # database = medical_robot.Database(database_host,database,database_user,database_password)
+    # medbot = medical_robot.Medbot(database, microphone_index=1)
+    # medbot.load_config('config.yml')
+    # medbot.pulse_rate_from_bpm = True
+    # MedbotGUI(medbot)
+    MedbotGUIStartScreen()
