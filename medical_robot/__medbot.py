@@ -12,7 +12,7 @@ from datetime import datetime
 from .__max30102 import MAX30102
 from .__bp3gy12n import Microlife_BTLE
 from serial import Serial
-from .__utility import calc_hr_and_spo2, determine_pulse_rate_rating, determine_blood_pressure_rating, determine_blood_saturation_rating
+from .__utility import MedbotUtility
 from types import FunctionType
 import cv2
 import numpy
@@ -64,6 +64,7 @@ class Medbot:
             self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
         except:
             self.arduino = Serial('/dev/ttyACM1', 9600, timeout = 1)
+        self.utility = MedbotUtility()
         self.oximeter_samples = 1
         self.start_blood_pressure_monitor_delay = 45
         self.pulse_rate_from_bpm = False
@@ -351,6 +352,7 @@ class Medbot:
                 return 'Ok'
         else:
             return response
+
     def send_command(self, command: int):
         '''
             Send command to arduino. 
@@ -385,7 +387,7 @@ class Medbot:
         if(self.oximeter_samples == 1):
             while(len(pulse_rate_samples) == 0):
                 red, ir = self.oximeter.read_sequential()
-                pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = calc_hr_and_spo2(ir[:100], red[:100])
+                pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = self.utility.calc_hr_and_spo2(ir[:100], red[:100])
                 if(pulse_rate_valid and blood_saturation_valid and blood_saturation >= 90):
                     pulse_rate_samples.append(pulse_rate)
                     blood_saturation_samples.append(blood_saturation)
@@ -393,7 +395,7 @@ class Medbot:
         else:
             while(sample_count < self.oximeter_samples):
                 red, ir = self.oximeter.read_sequential()
-                pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = calc_hr_and_spo2(ir[:100], red[:100])
+                pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = self.utility.calc_hr_and_spo2(ir[:100], red[:100])
                 if(pulse_rate_valid and blood_saturation_valid and sample_count <= 10):
                     pulse_rate_samples.append(pulse_rate)
                     blood_saturation_samples.append(blood_saturation)
@@ -456,7 +458,7 @@ class Medbot:
             - `Normal`
             - `High`
         '''
-        pulse_rate_rating = determine_pulse_rate_rating(age, pulse_rate)
+        pulse_rate_rating = self.utility.determine_pulse_rate_rating(age, pulse_rate)
         return pulse_rate_rating
 
     def interpret_blood_pressure(self, systolic, diastolic):
@@ -470,7 +472,7 @@ class Medbot:
             - `High Stage 2`
             - `Hypertensive Crisis`
         '''
-        blood_pressure_rating = determine_blood_pressure_rating(systolic, diastolic)
+        blood_pressure_rating = self.utility.determine_blood_pressure_rating(systolic, diastolic)
         return blood_pressure_rating
 
     def interpret_blood_saturation(self, blood_saturation):
@@ -481,7 +483,7 @@ class Medbot:
             - `Normal`
             - `High`
         '''
-        blood_saturation_rating = determine_blood_saturation_rating(blood_saturation)
+        blood_saturation_rating = self.utility.determine_blood_saturation_rating(blood_saturation)
         return blood_saturation_rating
 
     def interpret_readings(self, pulse_rate, systolic, diastolic, blood_saturation):
@@ -492,11 +494,11 @@ class Medbot:
             - `Normal`
             - `High`
         '''
-        pulse_rate_rating = determine_pulse_rate_rating(self.current_user.get_info()['age'],
+        pulse_rate_rating = self.utility.determine_pulse_rate_rating(self.current_user.get_info()['age'],
                             pulse_rate, return_int = True)
-        blood_pressure_rating = determine_blood_pressure_rating(systolic, diastolic,
+        blood_pressure_rating = self.utility.determine_blood_pressure_rating(systolic, diastolic,
                             return_int = True)
-        blood_saturation_rating = determine_blood_saturation_rating(blood_saturation,
+        blood_saturation_rating = self.utility.determine_blood_saturation_rating(blood_saturation,
                             return_int = True)
         overall_rating = (pulse_rate_rating + blood_pressure_rating + blood_saturation_rating)/3
         if(overall_rating <= 1):
@@ -515,11 +517,11 @@ class Medbot:
             - `Normal`
             - `High`
         '''
-        pulse_rate_rating = determine_pulse_rate_rating(self.current_user.get_info()['age'],
+        pulse_rate_rating = self.utility.determine_pulse_rate_rating(self.current_user.get_info()['age'],
                             self.get_current_pulse_rate(), return_int = True)
-        blood_pressure_rating = determine_blood_pressure_rating(self.get_current_systolic(),
+        blood_pressure_rating = self.utility.determine_blood_pressure_rating(self.get_current_systolic(),
                             self.get_current_diastolic(), return_int = True)
-        blood_saturation_rating = determine_blood_saturation_rating(self.get_current_blood_saturation(),
+        blood_saturation_rating = self.utility.determine_blood_saturation_rating(self.get_current_blood_saturation(),
                             return_int = True)
         overall_rating = (pulse_rate_rating + blood_pressure_rating + blood_saturation_rating)/3
         if(overall_rating <= 1):
@@ -869,7 +871,6 @@ class Medbot:
             print(response)
             if(response == 'ok'):
                 break
-        
 
     def debug_read(self):
         response = self.arduino.read_until('\n').decode('utf-8').rstrip()
@@ -896,3 +897,4 @@ class Medbot:
         values = (1,100,99,2,120,80,date_now,date_now)
         cursor.execute(query, values)
         connection.commit()
+        
