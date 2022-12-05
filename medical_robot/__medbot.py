@@ -277,6 +277,44 @@ class Medbot:
         else:
             raise Exception('Body check is not completed or not started yet')
 
+    def detect_finger(self, wait_until_detected: bool = False):
+        '''
+            Queries the Arduino if finger is placed on the oximeter \n
+            Returns `true` if finger is detected otherwise false. \n
+            If `wait_until_detected` is set to true, will wait until
+            the Arduino detects finger
+        '''
+        self.send_command(5)
+        if(wait_until_detected):
+            response = ''
+            while(response != '1'):
+                response = self.get_arduino_response()
+        else:
+            response = self.get_arduino_response()
+            if(response == '1'):
+                return True
+            else:
+                return False
+
+    def detect_finger(self, wait_until_detected: bool = False):
+        '''
+            Queries the Arduino if arm is placed on the cuff \n
+            Returns `true` if arm is detected otherwise false. \n
+            If `wait_until_detected` is set to true, will wait until
+            the Arduino detects arm
+        '''
+        self.send_command(6)
+        if(wait_until_detected):
+            response = ''
+            while(response != '1'):
+                response = self.get_arduino_response()
+        else:
+            response = self.get_arduino_response()
+            if(response == '1'):
+                return True
+            else:
+                return False
+
     def get_arduino_response(self, return_string: bool = False, timeout: float = 0):
         '''
             Get the Arduino response if available \n
