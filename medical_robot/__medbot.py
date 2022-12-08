@@ -278,19 +278,20 @@ class Medbot:
         else:
             raise Exception('Body check is not completed or not started yet')
 
-    def detect_finger(self, wait_until_detected: bool = False):
+    def detect_arm(self, wait_until_detected: bool = False):
         '''
-            Queries the Arduino if finger is placed on the oximeter \n
-            Returns `true` if finger is detected otherwise false. \n
+            Queries the Arduino if arm is placed on the cuff \n
+            Returns `true` if arm is detected otherwise `false`. \n
             If `wait_until_detected` is set to true, will wait until
-            the Arduino detects finger
+            the Arduino detects arm
         '''
-        self.send_command(5)
         if(wait_until_detected):
+            self.send_command(6)
             response = ''
             while(response != '1'):
                 response = self.get_arduino_response()
         else:
+            self.send_command(5)
             response = self.get_arduino_response()
             if(response == '1'):
                 return True
@@ -299,17 +300,18 @@ class Medbot:
 
     def detect_finger(self, wait_until_detected: bool = False):
         '''
-            Queries the Arduino if arm is placed on the cuff \n
-            Returns `true` if arm is detected otherwise false. \n
+            Queries the Arduino if finger is placed on the oximeter \n
+            Returns `true` if finger is detected otherwise `false`. \n
             If `wait_until_detected` is set to true, will wait until
-            the Arduino detects arm
+            the Arduino detects finger
         '''
-        self.send_command(6)
         if(wait_until_detected):
+            self.send_command(8)
             response = ''
             while(response != '1'):
                 response = self.get_arduino_response()
         else:
+            self.send_command(7)
             response = self.get_arduino_response()
             if(response == '1'):
                 return True
@@ -363,7 +365,7 @@ class Medbot:
             - `2` Body Release
             - `3` Start Sanitize
         '''
-        commands = [0, 1, 2, 3, 4, 9]
+        commands = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
         if(command in commands):
             while True:
                 self.arduino.write(bytes(str(command)+'\n','utf-8'))
