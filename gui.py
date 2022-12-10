@@ -419,6 +419,13 @@ class MedbotGUIMain():
         self.animation_timer = 1
         self.finger_notification_fixed = False
         self.arm_notification_fixed = False
+        self.finger_detected = False
+        self.arm_detected = False
+        self.detection_started = False
+        self.detection_finished = False
+        self.body_locked = False
+        self.oximeter_lock_delay = 2
+        self.cuff_lock_delay = 10
         self.waiting_thread = Thread(target=self.medbot.wait_body_check)
         self.oximeter_thread = Thread(target = self.medbot.start_oximeter)
         self.bp_finished = False
@@ -437,19 +444,26 @@ class MedbotGUIMain():
         self.transparent_icon = ImageTk.PhotoImage(Image.open('images/transparent.png').resize((16,16)))
 
         self.finger_notification_holder = tkinter.Canvas(self.window, width = 24, height = 24)
+        self.finger_notification_holder.configure(background = 'white')
         self.finger_icon = ImageTk.PhotoImage(Image.open('images/finger.png').resize((16,16)))
         self.finger_notification_holder.create_image(4, 4, image = self.finger_icon, anchor = tkinter.NW)
-        self.finger_notification_holder.place(x = 700, y = 10)
+        self.finger_notification_holder.place(x = 695, y = 2.5)
 
         self.arm_notification_holder = tkinter.Canvas(self.window, width = 24, height = 24)
+        self.arm_notification_holder.configure(background = 'white')
         self.arm_icon = ImageTk.PhotoImage(Image.open('images/arm.png').resize((16,16)))
         self.arm_notification_holder.create_image(4, 4, image = self.arm_icon, anchor = tkinter.NW)
-        self.arm_notification_holder.place(x = 730, y = 10)
+        self.arm_notification_holder.place(x = 725, y = 2.5)
 
-        self.display = tkinter.Canvas(self.window, width = 700, height = 270)
-        self.display_text = self.display.create_text(350, 140, text = 'Initializing Please Wait',
+        self.display = tkinter.Canvas(self.window, width = 700, height = 220)
+        self.display_text = self.display.create_text(350, 110, text = 'Initializing Please Wait',
                             anchor = tkinter.CENTER, font = ('Lucida', 20), justify = 'center')
         self.display.place(x = 50, y = 30)
+
+        self.log_holder = tkinter.Text(self.window, height = 3, width = 85)
+        self.log_holder.insert(tkinter.END, 'Logged in Successfully')
+        self.log_holder.see(tkinter.END)
+        self.log_holder.place(x = 57.5, y = 260)
 
         self.pulse_rate_holder = tkinter.Canvas(self.window, width = 220, height = 100)
         self.pulse_rate_icon = ImageTk.PhotoImage(Image.open('images/pulse_rate.png').resize((64,64)))
@@ -481,11 +495,11 @@ class MedbotGUIMain():
         self.blood_saturation_holder.configure(background = '#f5f7fa')
         self.blood_saturation_holder.place(x = 530, y = 320)
         self.load_config()
-        self.update()
+        self.window.after(3000, self.update)
 
     def update(self):
-        # Check if body check operation hasn't start (initialize)
-        if(not self.medbot.body_check_started and not self.window_completed and self.window_launched):
+        # Check if arm and finger detection hasn't start (initialize)
+        if(not self.detection_started and not self.window_completed and self.window_launched):
             print('OP1')
             self.display.itemconfigure(self.display_text, text = 'Starting Body Check')
             if(not self.voice_prompt_started and self.speaker_refreshed):
@@ -494,14 +508,30 @@ class MedbotGUIMain():
                 self.speaker_refreshed = False
                 # voice_prompt = Thread(target=self.medbot.speak, args=(self.body_check_prompt_voice,))
                 # voice_prompt.start()
-                self.medbot.start_body_check()
+                # self.medbot.start_body_check()
                 # self.medbot.body_check_complete()
+                self.log_holder.insert(tkinter.END, '\nStarting Body Check...')
+                self.log_holder.see(tkinter.END)
+                self.detection_started = True
             else:
                 self.speaker_refreshed = True
 
-        # Check if body check operation is in progress
-        elif(self.medbot.body_check_in_progress and self.voice_prompt_started):
+        # Check if arm and finger detection is in progress
+        # Continously detect arm and finger
+        elif(self.detection_started and not self.detection_finished and self.voice_prompt_started):
             print('OP2')
+            if(not self.medbot.finger_detected):
+                if(self.medbot.detect_finger()):
+                    self.log_holder.insert(tkinter.END, '\nFinger Detected')
+                    self.log_holder.see(tkinter.END)
+            if(not self.medbot.arm_detected):
+                if(self.medbot.detect_arm()):
+                    self.log_holder.insert(tkinter.END, '\nArm Detected')
+                    self.log_holder.see(tkinter.END)
+            if(self.medbot.finger_detected and self.medbot.arm_detected):
+                self.log_holder.insert(tkinter.END, '\nBody Check Completed')
+                self.log_holder.see(tkinter.END)
+                self.detection_finished = True
             if(self.animation_timer == 1):
                 self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + ' .')
                 self.animation_timer = 2
@@ -511,7 +541,6 @@ class MedbotGUIMain():
             elif(self.animation_timer == 3):
                 self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + '   .')
                 self.animation_timer = 0
-                self.medbot.body_check_complete()
             elif(self.animation_timer == 0):
                 self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + '.')
                 self.animation_timer = 1
@@ -532,10 +561,22 @@ class MedbotGUIMain():
             #     self.arm_notification_holder.create_image(4, 4, image = self.arm_icon, anchor = tkinter.NW)
             time.sleep(0.5)
 
-        # Check if body check operation is completed but the measuring operation has not started
-        # Starts the oximeter and bp thread
-        elif(self.medbot.body_check_completed and not self.operation_started and not self.operation_completed):
+        # Check if arm and finger detection is complete
+        # Lock arm and finger
+        elif(self.detection_finished and not self.body_locked):
             print('OP3')
+            self.log_holder.insert(tkinter.END, '\nLocking')
+            self.log_holder.see(tkinter.END)
+            self.medbot.lock_oximeter()
+            time.sleep(self.oximeter_lock_delay)
+            self.medbot.lock_cuff()
+            time.sleep(self.cuff_lock_delay)
+            self.body_locked = True
+
+        # Check if body is locked
+        # Starts the oximeter and bp thread
+        elif(self.body_locked and not self.operation_started and not self.operation_completed):
+            print('OP4')
             self.display.itemconfigure(self.display_text, text = self.in_progress_prompt_text)
             if(self.speaker_refreshed):
                 self.medbot.speak(self.in_progress_prompt_voice)
@@ -545,8 +586,10 @@ class MedbotGUIMain():
                 if(not self.oximeter_thread_started):
                     self.oximeter_thread.start()
                     self.oximeter_thread_started = True
+                    self.log_holder.insert(tkinter.END, '\nOximeter started')
                 if(not self.bp_thread_started):
                     self.bp_thread_started = True
+                    self.log_holder.insert(tkinter.END, '\nBP started')
                     self.medbot.start_blood_pressure_monitor(retry_on_fail=True)
                     print('Finnished')
                     self.bp_finished = True
@@ -558,7 +601,7 @@ class MedbotGUIMain():
         # Check if the measuring operation threads are still alive
         # Do some animation
         elif(self.oximeter_thread_started and self.oximeter_thread.is_alive() and self.bp_thread_started and self.bp_thread.is_alive() and self.operation_started):
-            print('OP4')
+            print('OP5')
 
         # Check if the measuring operation thread has finished
         # Does some variable resets for finalizing operation completion
@@ -570,7 +613,7 @@ class MedbotGUIMain():
         # Flash the readings on to the screen and prompt user to use thermal printer or not
         # Save reading to database
         elif(not self.oximeter_thread.is_alive() and self.bp_finished and self.operation_completed and not self.printer_prompted):
-            print('OP5')
+            print('OP6')
             self.display.itemconfigure(self.display_text, text = 'Saving....')
             pulse_rate = self.medbot.get_current_pulse_rate()
             systolic = self.medbot.get_current_systolic()
@@ -595,9 +638,10 @@ class MedbotGUIMain():
             else:
                 self.speaker_refreshed = True
 
+        # Check if readings is saved
         # Invoke printer command and logout
         elif(self.printer_prompted):
-            print('OP6')
+            print('OP7')
             if(not self.printer_choice_displayed):
                 self.display.itemconfigure(self.display_text, text = self.printer_prompt_text + '\n')
                 self.yes_button = tkinter.Button(self.display, text = 'Yes', width = 15, height = 2, 
@@ -694,3 +738,4 @@ if __name__ == '__main__':
     # medbot.pulse_rate_from_bpm = True
     # MedbotGUI(medbot)
     MedbotGUIStartScreen()
+    
