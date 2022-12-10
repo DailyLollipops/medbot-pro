@@ -1,4 +1,4 @@
-import numpy as __numpy
+import numpy
 
 __all__ = []
 
@@ -14,7 +14,7 @@ class MedbotUtility:
     def __init__(self):
         pass
 
-    # this assumes ir_data and red_data as __numpy.array
+    # this assumes ir_data and red_data as numpy.array
     def calc_hr_and_spo2(self, ir_data, red_data):
         """
         By detecting  peaks of PPG cycle and corresponding AC/DC
@@ -28,19 +28,19 @@ class MedbotUtility:
         # sampling frequency * 4 (in algorithm.h)
         BUFFER_SIZE = 100
         # get dc mean
-        ir_mean = int(__numpy.mean(ir_data))
+        ir_mean = int(numpy.mean(ir_data))
 
         # remove DC mean and inver signal
         # this lets peak detecter detect valley
-        x = -1 * (__numpy.array(ir_data) - ir_mean)
+        x = -1 * (numpy.array(ir_data) - ir_mean)
 
         # 4 point moving average
-        # x is __numpy.array with int values, so automatically casted to int
+        # x is numpy.array with int values, so automatically casted to int
         for i in range(x.shape[0] - MA_SIZE):
-            x[i] = __numpy.sum(x[i:i+MA_SIZE]) / MA_SIZE
+            x[i] = numpy.sum(x[i:i+MA_SIZE]) / MA_SIZE
 
         # calculate threshold
-        n_th = int(__numpy.mean(x))
+        n_th = int(numpy.mean(x))
         n_th = 30 if n_th < 30 else n_th  # min allowed
         n_th = 60 if n_th > 60 else n_th  # max allowed
 
@@ -178,7 +178,7 @@ class MedbotUtility:
         # should be equal to maxim_sort_indices_descend
         # order peaks from large to small
         # should ignore index:0
-        sorted_indices = sorted(self, ir_valley_locs, key=lambda i: x[i])
+        sorted_indices = sorted(ir_valley_locs, key=lambda i: x[i])
         sorted_indices.reverse()
 
         # this "for" loop expression does not check finish condition
