@@ -64,6 +64,7 @@ class Medbot:
             self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
         except:
             self.arduino = Serial('/dev/ttyACM1', 9600, timeout = 1)
+        self.availabe_commands = [i for i in range(18)]
         self.utility = MedbotUtility()
         self.oximeter_samples = 1
         self.start_blood_pressure_monitor_delay = 45
@@ -72,6 +73,8 @@ class Medbot:
         self.has_user = False
         self.finger_detected = False
         self.arm_detected = False
+        self.oximeter_locked = False
+        self.cuff_locked = False
         self.body_check_started = False
         self.body_check_in_progress = False
         self.body_check_completed = False
@@ -239,9 +242,9 @@ class Medbot:
                     self.body_check_in_progress = False
                     self.body_check_completed = True
                     return True
-                elif(response == '9'):
+                elif(response == '1'):
                     self.finger_detected = True
-                elif(response == '8'):
+                elif(response == '1'):
                     self.arm_detected = True
         else:
             raise Exception('Body check is not started')
@@ -290,12 +293,15 @@ class Medbot:
             response = ''
             while(response != '1'):
                 response = self.get_arduino_response()
+            self.arm_detected = True
         else:
             self.send_command(5)
             response = self.get_arduino_response()
             if(response == '1'):
+                self.arm_detected = True
                 return True
             else:
+                self.arm_detected = False
                 return False
 
     def detect_finger(self, wait_until_detected: bool = False):
@@ -310,13 +316,44 @@ class Medbot:
             response = ''
             while(response != '1'):
                 response = self.get_arduino_response()
+            self.finger_detected = True
         else:
             self.send_command(7)
             response = self.get_arduino_response()
             if(response == '1'):
+                self.finger_detected = True
                 return True
             else:
+                self.finger_detected = False
                 return False
+
+    def lock_cuff(self):
+        if(not self.cuff_locked):
+            self.send_command(16)
+            self.cuff_locked = True
+        else:
+            raise Exception('Cuff is locked')
+
+    def lock_oximeter(self):
+        if(not self. oximeter_locked):
+            self.send_command(14)
+            self.oximeter_locked = True
+        else:
+            raise Exception('Oximeter is locked')
+
+    def release_cuff(self):
+        if(self.cuff_locked):
+            self.send_command(17)
+            self.cuff_locked = False
+        else:
+            raise Exception('Cuff is unlocked')
+
+    def release_oximeter(self):
+        if(self.oximeter_locked):
+            self.send_command(15)
+            self.oximeter_locked = False
+        else:
+            raise Exception('Oximeter is unlocked')
 
     def get_arduino_response(self, return_string: bool = False, timeout: float = 0):
         '''
@@ -365,8 +402,7 @@ class Medbot:
             - `2` Body Release
             - `3` Start Sanitize
         '''
-        commands = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-        if(command in commands):
+        if(command in self.availabe_commands):
             while True:
                 self.arduino.write(bytes(str(command)+'\n','utf-8'))
                 response = self.get_arduino_response()
@@ -380,7 +416,7 @@ class Medbot:
     def start_oximeter(self):
         '''
             Start the MAX30102 oximeter and gets 5 valid measurements and returns it's average \n
-            Returns and cache pulse rate and blood saturation on default. If `pulse_rate_from_bpm
+            Returns and cache pulse rate and blood saturation on default. If `pulse_rate_from_bpm`
             is set to `True` returns only blood saturation
         '''
         pulse_rate_samples = []
