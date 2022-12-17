@@ -1,5 +1,33 @@
 #include <Stepper.h>
 
+/*
+ * Available commands
+ * 0 - Start body check 
+ * 1 - Stop body check
+ * 2 - Stop body check
+ * 3 - Start sanitizer
+ * 4 - Start BPM
+ * 5 - Detect arm
+ * 6 - Detect arm loop
+ * 7 - Detect finger
+ * 8 - Detect finger loop
+ * 9 - Reset
+ * 10 - Forward oximeter stepper (DEBUG)
+ * 11 - Backward oximeter stepper (DEBUG)
+ * 12 - Forward cuff stepper (DEBUG)
+ * 13 - Backward cuff stepper (DEBUG)
+ * 14 - Oximeter lock
+ * 15 - Oximeter release
+ * 16 - Cuff lock
+ * 17 - cuff release
+ * 
+ * Responses
+ * 90 - False
+ * 91 - True
+ * 92 - Operation Completed
+ * 93 - Operation Interrupted
+ */
+ 
 // Sanitize components pinout
 const int sanitizerRelay = 2;
 
@@ -12,9 +40,11 @@ const int oximeterTouchSensor = 7;
 const int armPiezo = A0;
 const int cuffFSR = A1;
 const int bpmSolenoid = 8;
-const int cuffStepperEnPin = 9;
-const int cuffStepperDirPin = 10;
-const int cuffStepperStepPin = 11;
+const int stopButton = 9;
+const int reverseButton = 10;
+const int debugPin = 11;
+const int cuffMotorIn1Pin = 12;
+const int cuffMotorIn2Pin = 13;
 
 // Global variables
 String command = "";
@@ -24,11 +54,9 @@ bool fingerDetected = false;
 bool armDetected = false;
 bool oximeterLocked = false;
 bool cuffLocked = false;
-int oximeterStepperSteps = 200;
-int roll = 0;
+int oximeterStepperSteps = 750;
 int armThreshold = 30;
-int cuffThreshold = 100;
-bool locking = true;
+int cuffThreshold = 500;
 
 void setup() {
   // Initialize Sanitizer Components
@@ -42,10 +70,16 @@ void setup() {
   pinMode(armPiezo, INPUT);
   pinMode(cuffFSR, INPUT);
   pinMode(bpmSolenoid, OUTPUT);
-  pinMode(cuffStepperEnPin, OUTPUT);
-  pinMode(cuffStepperDirPin, OUTPUT);
-  pinMode(cuffStepperStepPin, OUTPUT);
+  pinMode(cuffMotorIn1Pin, OUTPUT);
+  pinMode(cuffMotorIn2Pin, OUTPUT);
+  pinMode(debugPin, OUTPUT);
   digitalWrite(bpmSolenoid, HIGH);
+  digitalWrite(cuffMotorIn1Pin, LOW);
+  digitalWrite(cuffMotorIn2Pin, LOW);
+
+  // Initialize Buttons
+  pinMode(stopButton, INPUT_PULLUP);
+  pinMode(reverseButton, INPUT_PULLUP);
   
   // Initialize serial
   Serial.begin(9600);
@@ -55,6 +89,12 @@ void loop() {
   /* 
     Main Loop 
   */
+  // Check reverseButtonState
+  int reverseButtonValue = digitalRead(reverseButton);
+  if(reverseButtonValue == LOW){
+    cuffMotorBackward();  
+  }
+  
   // Command selector
   if(current_command == -1){
     receiveCommand();
@@ -62,24 +102,8 @@ void loop() {
 
   // Start body check
   else if(current_command == 0){
-    if(!fingerDetected){
-      detectFinger();
-    }
-    if(!armDetected){
-      detectArm();
-    }
-    if(fingerDetected && armDetected){
-      if(oximeterLocked && cuffLocked){
-        sendResponse("0");
-        current_command = -1;
-      }
-      else if(!oximeterLocked){
-        oximeterLock();
-      }
-      else if(!cuffLocked){
-        cuffLock();
-      }
-    }
+    startBodyCheck();
+    current_command = -1;
   }
 
   // Stop body check or Body release
@@ -107,9 +131,21 @@ void loop() {
     current_command = -1;
   }
 
-  // Detect Finger
+  // Detect Arm Loop
   else if(current_command == 6){
+    detectArmLoop();
+    current_command = -1;
+  }
+  
+  // Detect Finger
+  else if(current_command == 7){
     detectFinger();
+    current_command = -1;
+  }
+
+  // Detect Finger
+  else if(current_command == 8){
+    detectFingerLoop();
     current_command = -1;
   }
   
@@ -133,31 +169,38 @@ void loop() {
 
   // Forward Cuff Stepper
   else if(current_command == 12){
-    cuffStepperForward();
+    cuffMotorForward();
     current_command = -1;
   }
 
   // Reverse Cuff Stepper
   else if(current_command == 13){
-    cuffStepperBackward();
+    cuffMotorBackward();
     current_command = -1;
   }
-}
 
-void detectFinger(){
-  /*
-   * Detect finger on top of touch sensor
-   * Returns '1' on Serial if True otherwise
-   * returns '0'
-   */
-  int touchSensorValue = digitalRead(oximeterTouchSensor);
-  if(touchSensorValue == HIGH){
-    fingerDetected = true;
-    sendResponse("1");
+  // Oximeter Lock
+  else if(current_command == 14){
+    oximeterLock();
+    current_command = -1;
   }
-  else{
-    fingerDetected = false;
-    sendResponse("0");
+
+  // Oximeter Release
+  else if(current_command == 15){
+    oximeterRelease();
+    current_command = -1;
+  }
+
+  // Cuff Lock
+  else if(current_command == 16){
+    cuffLock();
+    current_command = -1;
+  }
+
+  // Cuff Release
+  else if(current_command == 17){
+    cuffRelease();
+    current_command = -1;
   }
 }
 
@@ -170,24 +213,96 @@ void detectArm(){
   int piezoValue = analogRead(armPiezo);
   if(piezoValue < armThreshold){
     armDetected = true;
-    sendResponse("1");
+    sendResponse("91");
   }
   else{
     armDetected = false;
-    sendResponse("0");
+    sendResponse("90");
   }
+}
+
+void detectArmLoop(){
+  /*
+   * Continously detect if arm is placed on
+   * cuff. Always return '1'  on Serial
+   */
+  while(!armDetected){
+    int value = analogRead(armPiezo);
+    if(value < armThreshold){
+      armDetected = true;
+      sendResponse("91");
+    }
+  }
+}
+
+void detectFinger(){
+  /*
+   * Detect finger on top of touch sensor
+   * Returns '1' on Serial if True otherwise
+   * returns '0'
+   */
+  int touchSensorValue = digitalRead(oximeterTouchSensor);
+  if(touchSensorValue == HIGH){
+    fingerDetected = true;
+    sendResponse("91");
+  }
+  else{
+    fingerDetected = false;
+    sendResponse("90");
+  }
+}
+
+void detectFingerLoop(){
+  /*
+   * Continouosly detect if finger is in
+   * the oximeter. Always return '1' on Serial
+   */
+  while(!fingerDetected){
+    int value = digitalRead(oximeterTouchSensor);
+    if(value == HIGH){
+      fingerDetected = true;
+      sendResponse("91");
+    }
+  }
+}
+
+void startBodyCheck(){
+  /*
+   * Start detecting arm and finger
+   * Also starts locking operation
+   * when detected
+   */
+  if(!fingerDetected){
+    detectFinger();
+  }
+  if(!armDetected){
+    detectArm();
+  }
+  if(fingerDetected && armDetected){
+    if(oximeterLocked && cuffLocked){
+      sendResponse("92");
+      current_command = -1;
+    }
+    else if(!oximeterLocked){
+      oximeterLock();
+    }
+    else if(!cuffLocked){
+      cuffLock();
+    }
+  }  
 }
 
 void oximeterLock(){
   /*
    * Locks the oximeter. 
-   * Only locks if finger is on the oximeter and
-   * oximeter is currently not locked
+   * Only locks if oximeter is currently 
+   * not locked
    */
-  if(fingerDetected && !oximeterLocked){
-    oximeterStepper.step(oximeterStepperSteps);
+  if(!oximeterLocked){
+    oximeterStepper.step(-oximeterStepperSteps);
     oximeterLocked = true;
   }
+  sendResponse("92");
 }
 
 void oximeterRelease(){
@@ -196,31 +311,43 @@ void oximeterRelease(){
    * Only releases if oximeter is currently locked 
    */
   if(oximeterLocked){
-    oximeterStepper.step(-oximeterStepperSteps);    
+    oximeterStepper.step(oximeterStepperSteps);
+    oximeterLocked = false;    
   }
-  oximeterLocked = false;    
+  sendResponse("92");
 }
 
 void cuffLock(){
   /*
    * Tighten the arm cuff until it is tight
    * enough depending on the cuff Threshold value
-   * Only tightens if cuff is currently locked
+   * Only tightens if cuff is currently not locked
    */
-  if(armDetected && !cuffLocked){
-    digitalWrite(cuffStepperDirPin, LOW);
+  bool interrupted = false;
+  if(!cuffLocked){
     int fsrValue = analogRead(cuffFSR);
-    while(fsrValue > cuffThreshold){
-      for(int i = 0; i < 50; i++){
-        digitalWrite(cuffStepperStepPin, HIGH);
-        delayMicroseconds(15000);
-        digitalWrite(cuffStepperStepPin, LOW);
-        delayMicroseconds(15000); 
+    while(fsrValue < cuffThreshold){
+      digitalWrite(cuffMotorIn1Pin, HIGH);
+      digitalWrite(cuffMotorIn2Pin, LOW);
+      int stopButtonValue = digitalRead(stopButton);
+      if(stopButtonValue == LOW){
+        interrupted = true;
+        break;
       }
       fsrValue = analogRead(cuffFSR);
-      roll++;
     }
-    cuffLocked = true;
+    digitalWrite(cuffMotorIn1Pin, LOW);
+    digitalWrite(cuffMotorIn2Pin, LOW);
+    if(interrupted){
+      sendResponse("93");
+    }
+    else{
+      cuffLocked = true;
+      sendResponse("92"); 
+    }
+  }
+  else{
+   sendResponse("92"); 
   }
 }
 
@@ -230,18 +357,14 @@ void cuffRelease(){
    * Only release if cuff is currently locked
    */
   if(cuffLocked){
-    digitalWrite(cuffStepperDirPin, HIGH);
-    for(int i = 0; i < roll; i++){
-      for(int j = 0; j < 50; j++){
-        digitalWrite(cuffStepperStepPin, HIGH);
-        delayMicroseconds(15000);
-        digitalWrite(cuffStepperStepPin, LOW);
-        delayMicroseconds(15000); 
-      }
-    }
-    roll = 0;
+    digitalWrite(cuffMotorIn1Pin, LOW);
+    digitalWrite(cuffMotorIn2Pin, HIGH);
+    delay(2000);
+    digitalWrite(cuffMotorIn1Pin, LOW);
+    digitalWrite(cuffMotorIn2Pin, LOW);
     cuffLocked = false;
   }
+  sendResponse("92");
 }
 
 void sanitize(){
@@ -259,6 +382,7 @@ void sanitize(){
   digitalWrite(sanitizerRelay, HIGH);
   delay(1000);
   digitalWrite(sanitizerRelay, LOW);
+  sendResponse("92");
 }
 
 void startBPM(){
@@ -269,6 +393,7 @@ void startBPM(){
   delay(250);
   digitalWrite(bpmSolenoid, HIGH);
   delay(1000);
+  sendResponse("92");
 }
 
 void reset(){
@@ -306,51 +431,42 @@ void receiveCommand(){
 void oximeterStepperForward(){
   /*
    * Attempt to move the oximeter's stepper
-   * motor forward and perform oximeter lock
-   * bypassing the touch sensor value
+   * motor forward by 100 steps and perform
+   * oximeter lock bypassing the touch sensor value
    */
-  oximeterStepper.step(oximeterStepperSteps);
+  oximeterStepper.step(100);
 }
 
 void oximeterStepperBackward(){
   /*
    * Move the oximeter's stepper motor backward
-   * to perform oximeter release function
+   * by 100 steps to perform oximeter release
+   * function
    */
-  oximeterStepper.step(-oximeterStepperSteps);
+  oximeterStepper.step(-100);
 }
 
-void cuffStepperForward(){
+void cuffMotorForward(){
   /*
-   * Attempt to move the cuff's stepper motor
+   * Attempt to move the cuff's motor
    * to perform cuff locking operation bypassing
    * the FSR value
    */
-  if(!locking){
-    digitalWrite(cuffStepperDirPin, LOW);
-    locking = true;
-  }
-  for(int i = 0; i < 200;i++){
-    digitalWrite(cuffStepperStepPin, HIGH);
-    delayMicroseconds(10000);
-    digitalWrite(cuffStepperStepPin, LOW);
-    delayMicroseconds(10000);  
-  }
+  digitalWrite(cuffMotorIn1Pin, HIGH);
+  digitalWrite(cuffMotorIn2Pin, LOW);
+  delay(500);
+  digitalWrite(cuffMotorIn1Pin, LOW);
+  digitalWrite(cuffMotorIn2Pin, LOW);
 }
 
-void cuffStepperBackward(){
+void cuffMotorBackward(){
   /*
-   * Move the cuff stepper backward releasing
+   * Move the cuff's motor backward releasing
    * the cuff
    */
-  if(locking){
-    digitalWrite(cuffStepperDirPin, HIGH);
-    locking = false;
-  }
-  for(int i = 0; i < 200;i++){
-    digitalWrite(cuffStepperStepPin, HIGH);
-    delayMicroseconds(20000);
-    digitalWrite(cuffStepperStepPin, LOW);
-    delayMicroseconds(20000);  
-  }
+  digitalWrite(cuffMotorIn1Pin, LOW);
+  digitalWrite(cuffMotorIn2Pin, HIGH);
+  delay(500);
+  digitalWrite(cuffMotorIn1Pin, LOW);
+  digitalWrite(cuffMotorIn2Pin, LOW);
 }
