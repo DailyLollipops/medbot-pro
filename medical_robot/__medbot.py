@@ -219,14 +219,17 @@ class Medbot:
         }
         self.send_command(9)
 
-    def start_body_check(self):
+    def start_body_check(self, wait_until_true: bool = False):
         '''
             Send command to the Arduino to start body check. \n
             Also includes the body lock operation invoked in the Arduino
         '''
-        # self.send_command(0)
+        self.send_command(0)
         self.body_check_started = True
         self.body_check_in_progress = True
+        if(wait_until_true):
+            self.wait_body_check()
+            return True
 
     def wait_body_check(self):
         '''
@@ -237,15 +240,15 @@ class Medbot:
         if(self.body_check_in_progress):
             while(self.body_check_in_progress):
                 response = self.get_arduino_response()
-                if(response == '0'):
+                if(response == '92'):
+                    self.finger_detected = True
+                    self.arm_detected = True
+                    self.oximeter_locked = True
+                    self.cuff_locked = True
                     self.body_check_started = False
                     self.body_check_in_progress = False
                     self.body_check_completed = True
                     return True
-                elif(response == '1'):
-                    self.finger_detected = True
-                elif(response == '1'):
-                    self.arm_detected = True
         else:
             raise Exception('Body check is not started')
 
@@ -291,13 +294,13 @@ class Medbot:
         if(wait_until_detected):
             self.send_command(6)
             response = ''
-            while(response != '1'):
+            while(response != '91'):
                 response = self.get_arduino_response()
             self.arm_detected = True
         else:
             self.send_command(5)
             response = self.get_arduino_response()
-            if(response == '1'):
+            if(response == '91'):
                 self.arm_detected = True
                 return True
             else:
@@ -314,13 +317,13 @@ class Medbot:
         if(wait_until_detected):
             self.send_command(8)
             response = ''
-            while(response != '1'):
+            while(response != '91'):
                 response = self.get_arduino_response()
             self.finger_detected = True
         else:
             self.send_command(7)
             response = self.get_arduino_response()
-            if(response == '1'):
+            if(response == '91'):
                 self.finger_detected = True
                 return True
             else:
@@ -330,6 +333,7 @@ class Medbot:
     def lock_cuff(self):
         if(not self.cuff_locked):
             self.send_command(16)
+            response = self.__wait_operation_complete()
             self.cuff_locked = True
         else:
             raise Exception('Cuff is locked')
@@ -337,6 +341,7 @@ class Medbot:
     def lock_oximeter(self):
         if(not self. oximeter_locked):
             self.send_command(14)
+            self.__wait_operation_complete()
             self.oximeter_locked = True
         else:
             raise Exception('Oximeter is locked')
@@ -344,6 +349,7 @@ class Medbot:
     def release_cuff(self):
         if(self.cuff_locked):
             self.send_command(17)
+            self.__wait_operation_complete()
             self.cuff_locked = False
         else:
             raise Exception('Cuff is unlocked')
@@ -351,24 +357,24 @@ class Medbot:
     def release_oximeter(self):
         if(self.oximeter_locked):
             self.send_command(15)
+            self.__wait_operation_complete()
             self.oximeter_locked = False
         else:
             raise Exception('Oximeter is unlocked')
 
-    def get_arduino_response(self, return_string: bool = False, timeout: float = 0):
+    def get_arduino_response(self, timeout: float = 0):
         '''
             Get the Arduino response if available \n
-            If `return_string` is `true`, returns a
-            formatted string, otherwise returns the raw
-            arduino string response \n
             Timeout could be set to listen for response
             within the timeout duration. If `timeout` is
             set to 0, function will execute one time.
             Setting `timeout` to 0 may return empty string
             and recommended to call in a loop \n
             Possible response:
-            - `0` Body Check Completed
-            - `1` Sanitize Completed
+            - `90` False
+            - `91` True
+            - `92` Operation Complete
+            - `93` Operation Interrupted
         '''
         if(timeout <= 0):
             response = self.arduino.readline().decode('utf-8').rstrip()
@@ -382,15 +388,7 @@ class Medbot:
                 now_time = datetime.timestamp(datetime.now())
             if((start_time - now_time) > timeout and response == ''):
                 raise Exception('Timeout reached')
-        if(return_string):
-            if(response == '0'):
-                return 'Body Check Completed'
-            elif(response == '1'):
-                return 'Sanitize Completed'
-            else:
-                return 'Ok'
-        else:
-            return response
+        return response
 
     def send_command(self, command: int):
         '''
@@ -412,6 +410,13 @@ class Medbot:
                     print(response)
         else:
             raise Exception('Unknown command')
+
+    def __wait_operation_complete(self):
+        response = self.get_arduino_response()
+        if(response == '92'):
+            return True
+        elif(response == '93'):
+            raise Exception('Operation Interrupted')
 
     def start_oximeter(self):
         '''
@@ -463,6 +468,7 @@ class Medbot:
         '''
         print('starting')
         self.send_command(4)
+        self.__wait_operation_complete()
         time.sleep(self.start_blood_pressure_monitor_delay)
         if(retry_on_fail):
             while True:
@@ -687,6 +693,7 @@ class Medbot:
             Send command to the Arduino to start sanitizing operation
         '''
         self.send_command(3)
+        self.__wait_operation_complete()
 
     def get_current_user(self):
         '''
