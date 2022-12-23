@@ -65,9 +65,11 @@ class Medbot:
         except:
             self.arduino = Serial('/dev/ttyACM1', 9600, timeout = 1)
         self.availabe_commands = [i for i in range(18)]
+        self.send_command(9)
+        self.__wait_operation_complete()
         self.utility = MedbotUtility()
         self.oximeter_samples = 1
-        self.start_blood_pressure_monitor_delay = 45
+        self.start_blood_pressure_monitor_delay = 60
         self.pulse_rate_from_bpm = False
         self.current_user = None,
         self.has_user = False
@@ -211,6 +213,8 @@ class Medbot:
         self.body_check_started = False
         self.body_check_in_progress = False
         self.voice_response = ''
+        self.oximeter_locked = False
+        self.cuff_locked = False
         self.current_reading = {
             'pulse_rate': None,
             'systolic': None,
@@ -218,6 +222,7 @@ class Medbot:
             'blood_saturation': None
         }
         self.send_command(9)
+        self.__wait_operation_complete()
 
     def start_body_check(self, wait_until_true: bool = False):
         '''
@@ -333,7 +338,7 @@ class Medbot:
     def lock_cuff(self):
         if(not self.cuff_locked):
             self.send_command(16)
-            response = self.__wait_operation_complete()
+            self.__wait_operation_complete()
             self.cuff_locked = True
         else:
             raise Exception('Cuff is locked')
@@ -406,8 +411,6 @@ class Medbot:
                 response = self.get_arduino_response()
                 if(response == 'ok'):
                     break
-                else:
-                    print(response)
         else:
             raise Exception('Unknown command')
 
@@ -443,10 +446,8 @@ class Medbot:
                     pulse_rate_samples.append(pulse_rate)
                     blood_saturation_samples.append(blood_saturation)
                     sample_count = sample_count + 1
-                    print(str(pulse_rate) + str(blood_saturation))
         average_blood_saturation = round(sum(blood_saturation_samples)/len(blood_saturation_samples))
         self.current_reading['blood_saturation'] = average_blood_saturation
-        print('Finished')
         if(not self.pulse_rate_from_bpm):
             average_pulse_rate = round(sum(pulse_rate_samples)/len(pulse_rate_samples))
             self.current_reading['pulse_rate'] = average_pulse_rate

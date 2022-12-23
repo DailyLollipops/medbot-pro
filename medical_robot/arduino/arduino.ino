@@ -40,7 +40,7 @@ const int oximeterTouchSensor = 7;
 const int armPiezo = A0;
 const int cuffFSR = A1;
 const int bpmSolenoid = 8;
-const int stopButton = 9;
+const int forwardButton = 9;
 const int reverseButton = 10;
 const int debugPin = 11;
 const int cuffMotorIn1Pin = 12;
@@ -54,6 +54,7 @@ bool fingerDetected = false;
 bool armDetected = false;
 bool oximeterLocked = false;
 bool cuffLocked = false;
+long int cuffActiveMicros = 0;
 int oximeterStepperSteps = 750;
 int armThreshold = 30;
 int cuffThreshold = 500;
@@ -78,7 +79,7 @@ void setup() {
   digitalWrite(cuffMotorIn2Pin, LOW);
 
   // Initialize Buttons
-  pinMode(stopButton, INPUT_PULLUP);
+  pinMode(forwardButton, INPUT_PULLUP);
   pinMode(reverseButton, INPUT_PULLUP);
   
   // Initialize serial
@@ -89,6 +90,14 @@ void loop() {
   /* 
     Main Loop 
   */
+
+ 
+  // Check forwardButtonState
+  int forwardButtonValue = digitalRead(forwardButton);
+  if(forwardButtonValue == LOW){
+    cuffMotorForward();
+  }
+  
   // Check reverseButtonState
   int reverseButtonValue = digitalRead(reverseButton);
   if(reverseButtonValue == LOW){
@@ -326,12 +335,20 @@ void cuffLock(){
   bool interrupted = false;
   if(!cuffLocked){
     int fsrValue = analogRead(cuffFSR);
+    long int startMicros = micros();
     while(fsrValue < cuffThreshold){
       digitalWrite(cuffMotorIn1Pin, HIGH);
       digitalWrite(cuffMotorIn2Pin, LOW);
-      int stopButtonValue = digitalRead(stopButton);
+      int stopButtonValue = digitalRead(forwardButton);
+      int okButtonValue = digitalRead(reverseButton);
       if(stopButtonValue == LOW){
+        long int endMicros = micros();
+        cuffActiveMicros = endMicros - startMicros;
         interrupted = true;
+        break;
+      }
+      if(okButtonValue == LOW){
+        cuffActiveMicros = 0;
         break;
       }
       fsrValue = analogRead(cuffFSR);
@@ -340,6 +357,17 @@ void cuffLock(){
     digitalWrite(cuffMotorIn2Pin, LOW);
     if(interrupted){
       sendResponse("93");
+      startMicros = micros();
+      while(1){
+        long int currentMicros = micros() - startMicros;
+        digitalWrite(cuffMotorIn1Pin, LOW);
+        digitalWrite(cuffMotorIn2Pin, HIGH);
+        if(currentMicros >= cuffActiveMicros){
+          break;
+        }         
+      }
+      digitalWrite(cuffMotorIn1Pin, LOW);
+      digitalWrite(cuffMotorIn2Pin, LOW);
     }
     else{
       cuffLocked = true;
@@ -398,13 +426,26 @@ void startBPM(){
 
 void reset(){
   /*
-   * Reset back armDetected and fingerDetected
-   * variables
+   * Reset back to default state
    * Invoked when resetting the unit with
    * medbot.reset()
    */
+  
   fingerDetected = false;
-  armDetected = false;   
+  armDetected = false;
+  if(oximeterLocked){
+    oximeterStepper.step(oximeterStepperSteps);
+    oximeterLocked = false;    
+  }
+  if(cuffLocked){
+    digitalWrite(cuffMotorIn1Pin, LOW);
+    digitalWrite(cuffMotorIn2Pin, HIGH);
+    delay(2000);
+    digitalWrite(cuffMotorIn1Pin, LOW);
+    digitalWrite(cuffMotorIn2Pin, LOW);
+    cuffLocked = false;
+  }
+  sendResponse("92");
 }
 
 void sendResponse(String response){
