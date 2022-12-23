@@ -417,15 +417,11 @@ class MedbotGUIMain():
         self.operation_started = False
         self.operation_completed = False
         self.animation_timer = 1
-        self.finger_notification_fixed = False
-        self.arm_notification_fixed = False
         self.finger_detected = False
         self.arm_detected = False
         self.detection_started = False
         self.detection_finished = False
         self.body_locked = False
-        self.oximeter_lock_delay = 2
-        self.cuff_lock_delay = 10
         self.waiting_thread = Thread(target=self.medbot.wait_body_check)
         self.oximeter_thread = Thread(target = self.medbot.start_oximeter)
         self.bp_finished = False
@@ -460,11 +456,6 @@ class MedbotGUIMain():
                             anchor = tkinter.CENTER, font = ('Lucida', 20), justify = 'center')
         self.display.place(x = 50, y = 30)
 
-        self.log_holder = tkinter.Text(self.window, height = 3, width = 85)
-        self.log_holder.insert(tkinter.END, 'Logged in Successfully')
-        self.log_holder.see(tkinter.END)
-        self.log_holder.place(x = 57.5, y = 260)
-
         self.pulse_rate_holder = tkinter.Canvas(self.window, width = 220, height = 100)
         self.pulse_rate_icon = ImageTk.PhotoImage(Image.open('images/pulse_rate.png').resize((64,64)))
         self.pulse_rate_holder.create_image(10, 18, image = self.pulse_rate_icon, anchor = tkinter.NW)
@@ -473,7 +464,7 @@ class MedbotGUIMain():
         self.pulse_rate_text = self.pulse_rate_holder.create_text(135, 65, text = '-- bpm',
                             anchor = tkinter.CENTER, font = ('Lucida', 15, 'bold'), justify = 'center')
         self.pulse_rate_holder.configure(background = '#f5f7fa')
-        self.pulse_rate_holder.place(x = 50, y = 320)
+        self.pulse_rate_holder.place(x = 50, y = 255)
 
         self.blood_pressure_holder = tkinter.Canvas(self.window, width = 220, height = 100)
         self.blood_pressure_icon = ImageTk.PhotoImage(Image.open('images/blood_pressure.png').resize((64,64)))
@@ -483,7 +474,7 @@ class MedbotGUIMain():
         self.blood_pressure_text = self.blood_pressure_holder.create_text(140, 65, text = '--/-- mmHg',
                             anchor = tkinter.CENTER, font = ('Lucida', 15, 'bold'), justify = 'center')
         self.blood_pressure_holder.configure(background = '#f5f7fa')
-        self.blood_pressure_holder.place(x = 290, y = 320)
+        self.blood_pressure_holder.place(x = 290, y = 255)
 
         self.blood_saturation_holder = tkinter.Canvas(self.window, width = 220, height = 100)
         self.blood_saturation_icon = ImageTk.PhotoImage(Image.open('images/blood_saturation.png').resize((64,64)))
@@ -493,7 +484,13 @@ class MedbotGUIMain():
         self.blood_saturation_text = self.blood_saturation_holder.create_text(130, 65, text = '-- %',
                             anchor = tkinter.CENTER, font = ('Lucida', 15, 'bold'), justify = 'center')
         self.blood_saturation_holder.configure(background = '#f5f7fa')
-        self.blood_saturation_holder.place(x = 530, y = 320)
+        self.blood_saturation_holder.place(x = 530, y = 255)
+
+        self.log_holder = tkinter.Text(self.window, height = 3, width = 85)
+        self.log_holder.insert(tkinter.END, 'Logged in Successfully')
+        self.log_holder.see(tkinter.END)
+        self.log_holder.place(x = 57.5, y = 360)
+
         self.load_config()
         self.window.after(3000, self.update)
 
@@ -565,12 +562,21 @@ class MedbotGUIMain():
         # Lock arm and finger
         elif(self.detection_finished and not self.body_locked):
             print('OP3')
-            self.log_holder.insert(tkinter.END, '\nLocking')
+            self.log_holder.insert(tkinter.END, '\nLocking Oximeter')
             self.log_holder.see(tkinter.END)
             self.medbot.lock_oximeter()
-            time.sleep(self.oximeter_lock_delay)
-            self.medbot.lock_cuff()
-            time.sleep(self.cuff_lock_delay)
+            self.log_holder.insert(tkinter.END, '\nOximeter Locked')
+            self.log_holder.see(tkinter.END)
+            self.log_holder.insert(tkinter.END, '\nLocking Arm Cuff')
+            self.log_holder.see(tkinter.END)
+            try:
+                self.medbot.lock_cuff()
+            except:
+                self.log_holder.insert(tkinter.END, '\nOperation Interrupted\nReseting...')
+                self.log_holder.see(tkinter.END)
+                self.reset()
+            self.log_holder.insert(tkinter.END, '\nLocking Oximeter')
+            self.log_holder.see(tkinter.END)
             self.body_locked = True
 
         # Check if body is locked
@@ -676,6 +682,32 @@ class MedbotGUIMain():
         self.master.deiconify()
         self.window.destroy()
 
+    def reset(self):
+        self.window_launched = False
+        self.wait_thread_started = False
+        self.operation_started = False
+        self.operation_completed = False
+        self.animation_timer = 1
+        self.finger_notification_fixed = False
+        self.arm_notification_fixed = False
+        self.finger_detected = False
+        self.arm_detected = False
+        self.detection_started = False
+        self.detection_finished = False
+        self.body_locked = False
+        self.bp_finished = False
+        self.voice_prompt_started = False
+        self.oximeter_thread_started = False
+        self.bp_thread_started = False
+        self.readings_saved = False
+        self.printer_prompted = False
+        self.printer_responded = False
+        self.printer_choice_displayed = False
+        self.printer_choice_thread_started = False
+        self.window_completed = False
+        self.speaker_refreshed = False
+        self.medbot.reset()
+        
     def printer_response(self, agreed: bool):
         if(agreed):
             date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -725,17 +757,17 @@ Sp02   {blood_saturation} %         {blood_saturation_rating}
         self.voice_command_fail_message = config['medbot']['gui']['printer_prompt']['on_failure_message'] 
 
 if __name__ == '__main__':
-    # with open('config.yml', 'r') as file:
-    #     config = yaml.safe_load(file)
-    # database_host = config['medbot']['database']['host']
-    # database = config['medbot']['database']['database']
-    # database_user = config['medbot']['database']['user']
-    # database_password = config['medbot']['database']['password']
+    with open('config.yml', 'r') as file:
+        config = yaml.safe_load(file)
+    database_host = config['medbot']['database']['host']
+    database = config['medbot']['database']['database']
+    database_user = config['medbot']['database']['user']
+    database_password = config['medbot']['database']['password']
 
-    # database = medical_robot.Database(database_host,database,database_user,database_password)
-    # medbot = medical_robot.Medbot(database, microphone_index=1)
-    # medbot.load_config('config.yml')
-    # medbot.pulse_rate_from_bpm = True
-    # MedbotGUI(medbot)
-    MedbotGUIStartScreen()
+    database = medical_robot.Database(database_host,database,database_user,database_password)
+    medbot = medical_robot.Medbot(database, microphone_index=1)
+    medbot.load_config('config.yml')
+    medbot.pulse_rate_from_bpm = True
+    MedbotGUI(medbot)
+    # MedbotGUIStartScreen()
     
