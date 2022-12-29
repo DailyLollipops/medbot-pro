@@ -42,22 +42,22 @@ const int cuffFSR = A1;
 const int bpmSolenoid = 8;
 const int forwardButton = 9;
 const int reverseButton = 10;
-const int debugPin = 11;
+const int armSensor = 11;
 const int cuffMotorIn1Pin = 12;
 const int cuffMotorIn2Pin = 13;
 
 // Global variables
 String command = "";
 int current_command = -1;
-int sanitizerTime = 2000; //Sanitizer livetime in millis
+int sanitizerTime = 3000; //Sanitizer livetime in millis
 bool fingerDetected = false;
 bool armDetected = false;
 bool oximeterLocked = false;
 bool cuffLocked = false;
-long int cuffActiveMicros = 0;
+long int cuffActiveMillis = 0;
 int oximeterStepperSteps = 750;
 int armThreshold = 30;
-int cuffThreshold = 500;
+int cuffThreshold = 600;
 
 void setup() {
   // Initialize Sanitizer Components
@@ -70,10 +70,10 @@ void setup() {
   // Initialize BPM Components
   pinMode(armPiezo, INPUT);
   pinMode(cuffFSR, INPUT);
+  pinMode(armSensor, INPUT);
   pinMode(bpmSolenoid, OUTPUT);
   pinMode(cuffMotorIn1Pin, OUTPUT);
   pinMode(cuffMotorIn2Pin, OUTPUT);
-  pinMode(debugPin, OUTPUT);
   digitalWrite(bpmSolenoid, HIGH);
   digitalWrite(cuffMotorIn1Pin, LOW);
   digitalWrite(cuffMotorIn2Pin, LOW);
@@ -90,8 +90,7 @@ void loop() {
   /* 
     Main Loop 
   */
-
- 
+  
   // Check forwardButtonState
   int forwardButtonValue = digitalRead(forwardButton);
   if(forwardButtonValue == LOW){
@@ -220,7 +219,7 @@ void detectArm(){
    * otherwise returns '0'
    */
   int piezoValue = analogRead(armPiezo);
-  if(piezoValue < armThreshold){
+  if(piezoValue > armThreshold){
     armDetected = true;
     sendResponse("91");
   }
@@ -237,7 +236,7 @@ void detectArmLoop(){
    */
   while(!armDetected){
     int value = analogRead(armPiezo);
-    if(value < armThreshold){
+    if(value > armThreshold){
       armDetected = true;
       sendResponse("91");
     }
@@ -335,20 +334,20 @@ void cuffLock(){
   bool interrupted = false;
   if(!cuffLocked){
     int fsrValue = analogRead(cuffFSR);
-    long int startMicros = micros();
+    long int startMillis = millis();
     while(fsrValue < cuffThreshold){
       digitalWrite(cuffMotorIn1Pin, HIGH);
       digitalWrite(cuffMotorIn2Pin, LOW);
       int stopButtonValue = digitalRead(forwardButton);
       int okButtonValue = digitalRead(reverseButton);
       if(stopButtonValue == LOW){
-        long int endMicros = micros();
-        cuffActiveMicros = endMicros - startMicros;
+        long int endMicros = millis();
+        cuffActiveMillis = endMicros - startMillis;
         interrupted = true;
         break;
       }
       if(okButtonValue == LOW){
-        cuffActiveMicros = 0;
+        cuffActiveMillis = 0;
         break;
       }
       fsrValue = analogRead(cuffFSR);
@@ -357,14 +356,21 @@ void cuffLock(){
     digitalWrite(cuffMotorIn2Pin, LOW);
     if(interrupted){
       sendResponse("93");
-      startMicros = micros();
-      while(1){
-        long int currentMicros = micros() - startMicros;
+      startMillis = millis();
+      if(cuffActiveMillis < 2000){
+        while(1){
+          long int currentMillis = millis() - startMillis;
+          digitalWrite(cuffMotorIn1Pin, LOW);
+          digitalWrite(cuffMotorIn2Pin, HIGH);
+          if(currentMillis >= cuffActiveMillis){
+            break;
+          }         
+        } 
+      }
+      else{
         digitalWrite(cuffMotorIn1Pin, LOW);
         digitalWrite(cuffMotorIn2Pin, HIGH);
-        if(currentMicros >= cuffActiveMicros){
-          break;
-        }         
+        delay(2000);       
       }
       digitalWrite(cuffMotorIn1Pin, LOW);
       digitalWrite(cuffMotorIn2Pin, LOW);
@@ -400,15 +406,15 @@ void sanitize(){
    * Turn on sanitizer
    */
   digitalWrite(sanitizerRelay, HIGH);
-  delay(1000);
+  delay(500);
+  digitalWrite(sanitizerRelay, LOW);
+  delay(500);
+  digitalWrite(sanitizerRelay, HIGH);
+  delay(500);
   digitalWrite(sanitizerRelay, LOW);
   delay(sanitizerTime);
   digitalWrite(sanitizerRelay, HIGH);
-  delay(1000);
-  digitalWrite(sanitizerRelay, LOW);
-  delay(1000);
-  digitalWrite(sanitizerRelay, HIGH);
-  delay(1000);
+  delay(500);
   digitalWrite(sanitizerRelay, LOW);
   sendResponse("92");
 }
