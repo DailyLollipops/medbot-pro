@@ -153,12 +153,12 @@ class MedbotGUI:
         self.just_logged_out = False
 
         self.placeholder = tkinter.Canvas(self.window, width = 380, height = 400)
-        self.qrcode = ImageTk.PhotoImage(Image.open('images/qrcode.png').resize((128,166)))
+        self.qrcode = ImageTk.PhotoImage(Image.open('images/qrcode.png').resize((256,260)))
         self.placeholder.create_text(190, 65, text = 'Med-bot: Pulse Rate\nand\nBlood Pressure Monitor',
-                            anchor = tkinter.CENTER, font = ('Lucida',14), justify = 'center')
-        self.placeholder.create_image(125, 130, image = self.qrcode, anchor = tkinter.NW)
-        self.placeholder.create_text(180, 355, text = 'Place your QR Code\nwithin the frame to Login',
-                            anchor = tkinter.CENTER, font = ('Lucida',14), justify = 'center')
+                            anchor = tkinter.CENTER, font = ('Lucida',14,'bold'), justify = 'center')
+        self.placeholder.create_image(65, 90, image = self.qrcode, anchor = tkinter.NW)
+        self.placeholder.create_text(180, 380, text = 'Place your QR Code\nwithin the frame to Login',
+                            anchor = tkinter.CENTER, font = ('Lucida',14,'bold'), justify = 'center')
         self.placeholder.configure(background = 'white', highlightbackground = 'white' )
         self.placeholder.place(x = 0, y = 0)
 
@@ -417,6 +417,7 @@ class MedbotGUIMain():
         self.operation_started = False
         self.operation_completed = False
         self.animation_timer = 1
+        self.sanitizer_finished = False
         self.finger_detected = False
         self.arm_detected = False
         self.detection_started = False
@@ -487,47 +488,53 @@ class MedbotGUIMain():
         self.blood_saturation_holder.place(x = 530, y = 255)
 
         self.log_holder = tkinter.Text(self.window, height = 3, width = 85)
-        self.log_holder.insert(tkinter.END, 'Logged in Successfully')
-        self.log_holder.see(tkinter.END)
+        self.log('Loginned Successfully')
         self.log_holder.place(x = 57.5, y = 360)
 
         self.load_config()
         self.window.after(3000, self.update)
 
     def update(self):
-        # Check if arm and finger detection hasn't start (initialize)
-        if(not self.detection_started and not self.window_completed and self.window_launched):
-            print('OP1')
-            self.display.itemconfigure(self.display_text, text = 'Starting Body Check')
+        # Check if sanitizer hasn't start (initialize)
+        if(not self.sanitizer_finished and not self.window_completed and self.window_launched):
+            self.display.itemconfigure(self.display_text, text = 'Sanitizing...')
             if(not self.voice_prompt_started and self.speaker_refreshed):
                 self.voice_prompt_started = True
-                self.medbot.speak(self.body_check_prompt_voice)
+                self.medbot.speak('Sanitizing. Please wait')
                 self.speaker_refreshed = False
                 # voice_prompt = Thread(target=self.medbot.speak, args=(self.body_check_prompt_voice,))
                 # voice_prompt.start()
                 # self.medbot.start_body_check()
                 # self.medbot.body_check_complete()
-                self.log_holder.insert(tkinter.END, '\nStarting Body Check...')
-                self.log_holder.see(tkinter.END)
-                self.detection_started = True
+                self.log('Sanitizing...')
+                self.medbot.start_sanitizer()
+                self.sanitizer_finished = True
+                self.speaker_refreshed = False
             else:
                 self.speaker_refreshed = True
 
+        # Check if sanitizing has finished
+        elif(self.sanitizer_finished and not self.detection_started):
+            time.sleep(2)
+            self.display.itemconfigure(self.display_text, text = 'Starting Body Check')
+            if(self.speaker_refreshed):
+                self.medbot.speak(self.body_check_prompt_voice)
+                self.detection_started = True
+                self.speaker_refreshed = False
+            else:
+                self.speaker_refreshed = True
+        
         # Check if arm and finger detection is in progress
         # Continously detect arm and finger
         elif(self.detection_started and not self.detection_finished and self.voice_prompt_started):
-            print('OP2')
             if(not self.medbot.finger_detected):
                 if(self.medbot.detect_finger()):
-                    self.log_holder.insert(tkinter.END, '\nFinger Detected')
-                    self.log_holder.see(tkinter.END)
+                    self.log('Finger Detected')
             if(not self.medbot.arm_detected):
                 if(self.medbot.detect_arm()):
-                    self.log_holder.insert(tkinter.END, '\nArm Detected')
-                    self.log_holder.see(tkinter.END)
+                    self.log('Arm Detected')
             if(self.medbot.finger_detected and self.medbot.arm_detected):
-                self.log_holder.insert(tkinter.END, '\nBody Check Completed')
-                self.log_holder.see(tkinter.END)
+                self.log('Body Check Complete')
                 self.detection_finished = True
             if(self.animation_timer == 1):
                 self.display.itemconfigure(self.display_text, text = self.body_check_prompt_text + ' .')
@@ -561,28 +568,21 @@ class MedbotGUIMain():
         # Check if arm and finger detection is complete
         # Lock arm and finger
         elif(self.detection_finished and not self.body_locked):
-            print('OP3')
-            self.log_holder.insert(tkinter.END, '\nLocking Oximeter')
-            self.log_holder.see(tkinter.END)
+            self.log('Locking Oximeter...')
             self.medbot.lock_oximeter()
-            self.log_holder.insert(tkinter.END, '\nOximeter Locked')
-            self.log_holder.see(tkinter.END)
-            self.log_holder.insert(tkinter.END, '\nLocking Arm Cuff')
-            self.log_holder.see(tkinter.END)
+            self.log('Oximeter Locked')
+            self.log('Locking Arm Cuff...')
             try:
                 self.medbot.lock_cuff()
+                self.log('Arm Cuff Locked')
             except:
-                self.log_holder.insert(tkinter.END, '\nOperation Interrupted\nReseting...')
-                self.log_holder.see(tkinter.END)
+                self.log('Operation Interrupted, Restarting...')
                 self.reset()
-            self.log_holder.insert(tkinter.END, '\nLocking Oximeter')
-            self.log_holder.see(tkinter.END)
             self.body_locked = True
 
         # Check if body is locked
         # Starts the oximeter and bp thread
         elif(self.body_locked and not self.operation_started and not self.operation_completed):
-            print('OP4')
             self.display.itemconfigure(self.display_text, text = self.in_progress_prompt_text)
             if(self.speaker_refreshed):
                 self.medbot.speak(self.in_progress_prompt_voice)
@@ -592,13 +592,20 @@ class MedbotGUIMain():
                 if(not self.oximeter_thread_started):
                     self.oximeter_thread.start()
                     self.oximeter_thread_started = True
-                    self.log_holder.insert(tkinter.END, '\nOximeter started')
+                    self.log('Oximeter Started')
                 if(not self.bp_thread_started):
                     self.bp_thread_started = True
-                    self.log_holder.insert(tkinter.END, '\nBP started')
+                    self.log('Blood Pressure Monitor Started')
                     self.medbot.start_blood_pressure_monitor(retry_on_fail=True)
-                    print('Finnished')
                     self.bp_finished = True
+                if(self.oximeter_thread_started and not self.oximeter_thread.is_alive() \
+                    and self.bp_thread_started and self.bp_finished):
+                    self.log('Releasing Oximeter...')
+                    self.medbot.release_oximeter()
+                    self.log('Oximeter Released')
+                    self.log('Releasing Arm Cuff...')
+                    self.medbot.release_cuff()
+                    self.log('Arm Cuff Released')
                     self.operation_completed = True
                 self.speaker_refreshed = False
             else:
@@ -606,8 +613,8 @@ class MedbotGUIMain():
 
         # Check if the measuring operation threads are still alive
         # Do some animation
-        elif(self.oximeter_thread_started and self.oximeter_thread.is_alive() and self.bp_thread_started and self.bp_thread.is_alive() and self.operation_started):
-            print('OP5')
+        # elif(self.oximeter_thread_started and self.oximeter_thread.is_alive() and self.bp_thread_started and self.bp_thread.is_alive() and self.operation_started):
+        #     print('OP5')
 
         # Check if the measuring operation thread has finished
         # Does some variable resets for finalizing operation completion
@@ -618,8 +625,7 @@ class MedbotGUIMain():
         # Check if operation has completed
         # Flash the readings on to the screen and prompt user to use thermal printer or not
         # Save reading to database
-        elif(not self.oximeter_thread.is_alive() and self.bp_finished and self.operation_completed and not self.printer_prompted):
-            print('OP6')
+        elif(self.operation_completed and not self.printer_prompted):
             self.display.itemconfigure(self.display_text, text = 'Saving....')
             pulse_rate = self.medbot.get_current_pulse_rate()
             systolic = self.medbot.get_current_systolic()
@@ -628,6 +634,9 @@ class MedbotGUIMain():
             self.pulse_rate_holder.itemconfigure(self.pulse_rate_text, text = str(pulse_rate) + ' bpm')
             self.blood_pressure_holder.itemconfigure(self.blood_pressure_text, text = str(systolic) + '/' + str(diastolic) + ' mmHg')
             self.blood_saturation_holder.itemconfigure(self.blood_saturation_text, text = str(blood_saturation) + ' %')
+            self.log(f'Pulse Rate: {pulse_rate} bpm')
+            self.log(f'Blood Pressure: {systolic}/{diastolic} mmHg')
+            self.log(f'Blood Saturation: {blood_saturation} %')
             if(self.speaker_refreshed):
                 rating = self.medbot.interpret_current_readings()
                 if(rating == 'Low'):
@@ -637,7 +646,9 @@ class MedbotGUIMain():
                 elif(rating == 'High'):
                     self.medbot.speak(self.high_vital_sign_voice_message)
                 if(not self.readings_saved):
+                    self.log('Saving Readings....')
                     if(medbot.save_current_reading()):
+                        self.log('Readings Saved')
                         self.readings_saved = True
                 self.speaker_refreshed = False
                 self.printer_prompted = True 
@@ -647,15 +658,14 @@ class MedbotGUIMain():
         # Check if readings is saved
         # Invoke printer command and logout
         elif(self.printer_prompted):
-            print('OP7')
             if(not self.printer_choice_displayed):
                 self.display.itemconfigure(self.display_text, text = self.printer_prompt_text + '\n')
                 self.yes_button = tkinter.Button(self.display, text = 'Yes', width = 15, height = 2, 
                                     font = ('Lucida', 14, 'bold'), command = lambda:self.printer_response(True))
-                self.yes_button.place(x = 130, y = 200)
+                self.yes_button.place(x = 130, y = 150)
                 self.no_button = tkinter.Button(self.display, text = 'No', width = 15, height = 2, 
                                     font = ('Lucida', 14, 'bold'), command = lambda:self.printer_response(False))
-                self.no_button.place(x = 355, y = 200)
+                self.no_button.place(x = 355, y = 150)
                 self.printer_choice_displayed = True
             if(not self.printer_responded):
                 if(not self.printer_choice_thread_started):
@@ -673,6 +683,7 @@ class MedbotGUIMain():
         self.window.after(15, self.update)
 
     def on_close(self):
+        self.log('Logging out...')
         show_message(self.window, 'Logout Successfully', 
                             'See you later, ' + self.medbot.current_user.name + ' !',
                             timeout = 3000)
@@ -683,6 +694,7 @@ class MedbotGUIMain():
         self.window.destroy()
 
     def reset(self):
+        self.medbot.speak('Operation Interrupted. Restarting')
         self.window_launched = False
         self.wait_thread_started = False
         self.operation_started = False
@@ -707,9 +719,14 @@ class MedbotGUIMain():
         self.window_completed = False
         self.speaker_refreshed = False
         self.medbot.reset()
-        
+
+    def log(self, log: str):
+        self.log_holder.insert(tkinter.END, f'\n{log}')
+        self.log_holder.see(tkinter.END)
+
     def printer_response(self, agreed: bool):
         if(agreed):
+            self.log('Printing Results...')
             date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             pulse_rate = self.medbot.get_current_pulse_rate()
             systolic = self.medbot.get_current_systolic()
@@ -737,6 +754,7 @@ Sp02   {blood_saturation} %         {blood_saturation_rating}
         self.printer_responded = True
         self.medbot.listening = False
         self.window_completed = True
+        self.log('Results Printed')
         self.on_close()
 
     def on_failure_voice_command(self):
