@@ -65,6 +65,7 @@ class Medbot:
         except:
             self.arduino = Serial('/dev/ttyACM1', 9600, timeout = 1)
         self.availabe_commands = [i for i in range(18)]
+        self.arduino.flush()
         self.send_command(9)
         self.__wait_operation_complete()
         self.utility = MedbotUtility()
@@ -382,12 +383,18 @@ class Medbot:
             - `93` Operation Interrupted
         '''
         if(timeout <= 0):
-            response = self.arduino.readline().decode('utf-8').rstrip()
+            try:
+                response = self.arduino.readline().decode('utf-8').rstrip()
+            except UnicodeDecodeError:
+                response = self.arduino.readline().decode('utf-8').rstrip()
         else:
             start_time = datetime.timestamp(datetime.now())
             now_time = datetime.timestamp(datetime.now())
             while((now_time - start_time) < timeout + 0.1):
-                response = self.arduino.readline().decode('utf-8').rstrip()
+                try:
+                    response = self.arduino.readline().decode('utf-8').rstrip()
+                except UnicodeDecodeError:
+                    response = self.arduino.readline().decode('utf-8').rstrip()
                 if(response != ''):
                     break
                 now_time = datetime.timestamp(datetime.now())
