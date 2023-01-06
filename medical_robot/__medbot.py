@@ -635,7 +635,8 @@ class Medbot:
                 break
         return success
 
-    def get_voice_input(self, accepted_answers: array or list = [], on_failure_callback: FunctionType = lambda:print('I cannot understand. Please try again')):
+    def get_voice_input(self, accepted_answers: array or list = [], on_success_callback: FunctionType = lambda:print('Okay'), \
+        on_failure_callback: FunctionType = lambda:print('I cannot understand. Please try again')):
         '''
             Get voice stream from the microphone and tries to decode it\n
             Only process if `voice_command_enabled` property is `True` \n
@@ -645,6 +646,8 @@ class Medbot:
             Error Exceptions. If `accepted_answers` was given, this function will
             also be called if the decoded text is not in the list
         '''
+        if(not isinstance(on_success_callback, FunctionType)):
+            raise Exception('On Success Callback must be a function')
         if(not isinstance(on_failure_callback, FunctionType)):
             raise Exception('On Failure Callback must be a function')
         if(self.voice_command_enabled):
@@ -658,10 +661,13 @@ class Medbot:
                         audio = self.recognizer.listen(self.microphone)
                         text = self.recognizer.recognize_google(audio)
                         text = text.lower()
+                        print(text)
                         if(len(accepted_answers) > 0):
-                            if(text in accepted_answers):
-                                self.listening = False
-                                break
+                            for answer in accepted_answers:
+                                if(answer in text):
+                                    self.listening = False
+                                    on_success_callback()
+                                    break
                             else:
                                 print(text)
                                 on_failure_callback()
