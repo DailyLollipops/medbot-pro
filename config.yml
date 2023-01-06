@@ -10,7 +10,7 @@ medbot:
   speaker:
     id: 'english'
     language: 'english'
-    rate: 40 # default: 130
+    rate: 20 # default: 130
     volume: 1 # default: 1
     voice: 'male' # values: 'male' or 'female'
   microphone:

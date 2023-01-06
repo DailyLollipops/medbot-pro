@@ -527,12 +527,14 @@ class MedbotGUIMain():
         # Check if arm and finger detection is in progress
         # Continously detect arm and finger
         elif(self.detection_started and not self.detection_finished and self.voice_prompt_started):
-            if(not self.medbot.finger_detected):
-                if(self.medbot.detect_finger()):
-                    self.log('Finger Detected')
             if(not self.medbot.arm_detected):
+                time.sleep(0.5)
                 if(self.medbot.detect_arm()):
                     self.log('Arm Detected')
+            elif(not self.medbot.finger_detected):
+                time.sleep(0.5)
+                if(self.medbot.detect_finger()):
+                    self.log('Finger Detected')
             if(self.medbot.finger_detected and self.medbot.arm_detected):
                 self.log('Body Check Complete')
                 self.detection_finished = True
@@ -618,7 +620,7 @@ class MedbotGUIMain():
 
         # Check if the measuring operation thread has finished
         # Does some variable resets for finalizing operation completion
-        # elif(self.oximeter_thread_started and not self.oximeter_thread.is_alive() and self.bp_thread_started and self.bp_finished and self.operation_started):
+        # elif-(self.oximeter_thread_started and not self.oximeter_thread.is_alive() and self.bp_thread_started and self.bp_finished and self.operation_started):
         #     self.operation_completed = True
         #     self.operation_started = False
             
@@ -634,17 +636,25 @@ class MedbotGUIMain():
             self.pulse_rate_holder.itemconfigure(self.pulse_rate_text, text = str(pulse_rate) + ' bpm')
             self.blood_pressure_holder.itemconfigure(self.blood_pressure_text, text = str(systolic) + '/' + str(diastolic) + ' mmHg')
             self.blood_saturation_holder.itemconfigure(self.blood_saturation_text, text = str(blood_saturation) + ' %')
-            self.log(f'Pulse Rate: {pulse_rate} bpm')
-            self.log(f'Blood Pressure: {systolic}/{diastolic} mmHg')
-            self.log(f'Blood Saturation: {blood_saturation} %')
+            self.log(f'Pulse Rate: {pulse_rate} bpm : {self.medbot.interpret_pulse_rate(self.medbot.current_user.age, self.medbot.get_current_pulse_rate())}')
+            self.log(f'Blood Pressure: {systolic}/{diastolic} mmHg : {self.medbot.interpret_blood_pressure(self.medbot.get_current_systolic(), self.medbot.get_current_diastolic())}')
+            self.log(f'Blood Saturation: {blood_saturation} % : {self.medbot.interpret_blood_saturation(self.medbot.get_current_blood_saturation())}')
             if(self.speaker_refreshed):
-                rating = self.medbot.interpret_current_readings()
-                if(rating == 'Low'):
-                    self.medbot.speak(self.low_vital_sign_voice_message)
-                elif(rating == 'Normal'):
-                    self.medbot.speak(self.normal_vital_sign_voice_message)
-                elif(rating == 'High'):
-                    self.medbot.speak(self.high_vital_sign_voice_message)
+                pulse_rate_rating = self.medbot.interpret_pulse_rate(self.medbot.current_user.age,self.medbot.get_current_pulse_rate())
+                blood_pressure_rating = self.medbot.interpret_blood_pressure(self.medbot.get_current_systolic(), self.medbot.get_current_diastolic())
+                blood_saturation_rating = self.medbot.interpret_blood_saturation(self.medbot.get_current_blood_saturation())
+                self.medbot.speak(f'Your pulse rate is {pulse_rate_rating}')
+                time.sleep(0.5)
+                self.medbot.speak(f'Your blood pressure rating is {blood_pressure_rating}')
+                time.sleep(0.5)
+                self.medbot.speak(f'Your blood saturation is {blood_saturation_rating}')
+                # rating = self.medbot.interpret_current_readings()
+                # if(rating == 'Low'):
+                #     self.medbot.speak(self.low_vital_sign_voice_message)
+                # elif(rating == 'Normal'):
+                #     self.medbot.speak(self.normal_vital_sign_voice_message)
+                # elif(rating == 'High'):
+                #     self.medbot.speak(self.high_vital_sign_voice_message)
                 if(not self.readings_saved):
                     self.log('Saving Readings....')
                     if(medbot.save_current_reading()):
