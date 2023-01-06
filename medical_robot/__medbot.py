@@ -300,13 +300,13 @@ class Medbot:
         if(wait_until_detected):
             self.send_command(6)
             response = ''
-            while(response != '91'):
+            while(response != '94'):
                 response = self.get_arduino_response()
             self.arm_detected = True
         else:
             self.send_command(5)
             response = self.get_arduino_response()
-            if(response == '91'):
+            if(response == '94'):
                 self.arm_detected = True
                 return True
             else:
@@ -323,13 +323,13 @@ class Medbot:
         if(wait_until_detected):
             self.send_command(8)
             response = ''
-            while(response != '91'):
+            while(response != '95'):
                 response = self.get_arduino_response()
             self.finger_detected = True
         else:
             self.send_command(7)
             response = self.get_arduino_response()
-            if(response == '91'):
+            if(response == '95'):
                 self.finger_detected = True
                 return True
             else:

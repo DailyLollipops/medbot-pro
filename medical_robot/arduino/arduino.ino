@@ -26,6 +26,8 @@
  * 91 - True
  * 92 - Operation Completed
  * 93 - Operation Interrupted
+ * 94 - Arm Detected
+ * 95 - Finger Detected
  */
  
 // Sanitize components pinout
@@ -215,13 +217,13 @@ void loop() {
 void detectArm(){
   /*
    * Detect if arm is inserted on BPM cuff
-   * Returns '1' on Serial if True
+   * Returns '94' on Serial if True
    * otherwise returns '0'
    */
-  int piezoValue = analogRead(armPiezo);
-  if(piezoValue > armThreshold){
+  int armSensorValue = digitalRead(armSensor);
+  if(armSensorValue == HIGH){
     armDetected = true;
-    sendResponse("91");
+    sendResponse("94");
   }
   else{
     armDetected = false;
@@ -232,13 +234,13 @@ void detectArm(){
 void detectArmLoop(){
   /*
    * Continously detect if arm is placed on
-   * cuff. Always return '1'  on Serial
+   * cuff. Always return '94'  on Serial
    */
   while(!armDetected){
-    int value = analogRead(armPiezo);
-    if(value > armThreshold){
+    int armSensorValue = digitalRead(armSensor);
+    if(armSensorValue == HIGH){
       armDetected = true;
-      sendResponse("91");
+      sendResponse("94");
     }
   }
 }
@@ -246,13 +248,13 @@ void detectArmLoop(){
 void detectFinger(){
   /*
    * Detect finger on top of touch sensor
-   * Returns '1' on Serial if True otherwise
+   * Returns '95' on Serial if True otherwise
    * returns '0'
    */
   int touchSensorValue = digitalRead(oximeterTouchSensor);
   if(touchSensorValue == HIGH){
     fingerDetected = true;
-    sendResponse("91");
+    sendResponse("95");
   }
   else{
     fingerDetected = false;
@@ -263,13 +265,13 @@ void detectFinger(){
 void detectFingerLoop(){
   /*
    * Continouosly detect if finger is in
-   * the oximeter. Always return '1' on Serial
+   * the oximeter. Always return '95' on Serial
    */
   while(!fingerDetected){
     int value = digitalRead(oximeterTouchSensor);
     if(value == HIGH){
       fingerDetected = true;
-      sendResponse("91");
+      sendResponse("95");
     }
   }
 }
