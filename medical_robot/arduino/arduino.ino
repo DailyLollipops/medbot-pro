@@ -51,7 +51,7 @@ const int cuffMotorIn2Pin = 13;
 // Global variables
 String command = "";
 int current_command = -1;
-int sanitizerTime = 3000; //Sanitizer livetime in millis
+int sanitizerTime = 4000; //Sanitizer livetime in millis
 bool fingerDetected = false;
 bool armDetected = false;
 bool oximeterLocked = false;
