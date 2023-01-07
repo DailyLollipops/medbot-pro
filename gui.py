@@ -9,7 +9,9 @@ import medical_robot
 import tkinter
 import time
 import yaml
+import os
 
+dirname = os.path.dirname(__file__)
 medbot = None
 
 def show_message(window, title, message, timeout = 0):
@@ -74,7 +76,7 @@ class MedbotGUIStartScreen:
         global medbot
         while(not self.medbot_initialized):
             try:
-                with open('config.yml', 'r') as file:
+                with open(os.path.join(dirname, 'config.yml'), 'r') as file:
                     config = yaml.safe_load(file)
                 database_host = config['medbot']['database']['host']
                 database = config['medbot']['database']['database']
@@ -82,7 +84,7 @@ class MedbotGUIStartScreen:
                 database_password = config['medbot']['database']['password']
                 database = medical_robot.Database(database_host,database,database_user,database_password)
                 medbot = medical_robot.Medbot(database, microphone_index=1)
-                medbot.load_config('config.yml')
+                medbot.load_config(os.path.join(dirname, 'config.yml'))
                 medbot.pulse_rate_from_bpm = True
                 self.medbot_initialized = True
             except:
@@ -94,7 +96,7 @@ class SplashScreen():
         self.window.title('Splash Screen')
         self.splash = Splash(self.window)
         self.splash.pack()
-        self.splash.load('images/splash.gif')
+        self.splash.load(os.path.join(dirname, 'images/splash.gif'))
         self.window.mainloop()
 
 class Splash(tkinter.Label):
@@ -145,7 +147,7 @@ class MedbotGUI:
         self.window = tkinter.Tk()
         self.window.title('Login Window')
         self.window.geometry('800x440')
-        logo = ImageTk.PhotoImage(Image.open('images/logo.png'))
+        logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/logo.png')))
         self.window.iconphoto(False, logo)
         self.window.configure(background = 'white')
         self.medbot = medbot
@@ -153,7 +155,7 @@ class MedbotGUI:
         self.just_logged_out = False
         
         self.placeholder = tkinter.Canvas(self.window, width = 380, height = 400)
-        self.qrcode = ImageTk.PhotoImage(Image.open('images/qrcode.png').resize((256,260)))
+        self.qrcode = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/qrcode.png')).resize((256,260)))
         self.placeholder.create_text(190, 65, text = 'Med-bot: Pulse Rate\nand\nBlood Pressure Monitor',
                             anchor = tkinter.CENTER, font = ('Lucida',14,'bold'), justify = 'center')
         self.placeholder.create_image(65, 90, image = self.qrcode, anchor = tkinter.NW)
@@ -162,7 +164,7 @@ class MedbotGUI:
         self.placeholder.configure(background = 'white', highlightbackground = 'white' )
         self.placeholder.place(x = 0, y = 0)
 
-        self.settings_logo = ImageTk.PhotoImage(Image.open('images/settings.png').resize((20,20)))
+        self.settings_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/settings.png')).resize((20,20)))
         self.settings_button = tkinter.Button(self.window, text = ' Settings', image = self.settings_logo,
                             compound = tkinter.LEFT, command = self.open_settings, background = 'white',
                             borderwidth = 0, activebackground = '#abdbe3', activeforeground = 'white',
@@ -210,13 +212,13 @@ class MedbotGUISettings:
         self.window.configure(background = 'white')
         self.window.grab_set()
 
-        self.settings_logo = ImageTk.PhotoImage(Image.open('images/settings.png').resize((24,24)))
+        self.settings_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/settings.png')).resize((24,24)))
         self.title_label = tkinter.Label(self.window, text = ' Settings', image = self.settings_logo,
                             compound = tkinter.LEFT, font = ('Lucida', 16), justify = 'center',
                             background = 'white')
         self.title_label.place(x = 150, y = 10)
 
-        self.voice_prompt_logo = ImageTk.PhotoImage(Image.open('images/speaker.png').resize((16,16)))
+        self.voice_prompt_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/speaker.png')).resize((16,16)))
         self.voice_prompt_label = tkinter.Label(self.window, text = ' Voice Prompt', font = ('Lucida', 11),
                             background = 'white', image = self.voice_prompt_logo, compound = tkinter. LEFT)
         self.voice_prompt_label.place(x = 50, y = 65)
@@ -228,7 +230,7 @@ class MedbotGUISettings:
         self.voice_prompt_dropdown['state'] = 'readonly'
         self.voice_prompt_dropdown.place(x = 225, y = 65)
 
-        self.voice_language_logo = ImageTk.PhotoImage(Image.open('images/language.png').resize((16,16)))
+        self.voice_language_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/language.png')).resize((16,16)))
         self.voice_language_label = tkinter.Label(self.window, text = ' Language', font = ('Lucida',11),
                             background = 'white', image = self.voice_language_logo, compound = tkinter.LEFT)
         self.voice_language_label.place(x = 50, y = 95)
@@ -240,7 +242,7 @@ class MedbotGUISettings:
         self.voice_language_dropdown['state'] = 'readonly'
         self.voice_language_dropdown.place(x = 225, y = 95)
 
-        self.voice_gender_logo = ImageTk.PhotoImage(Image.open('images/gender.png').resize((16,16)))
+        self.voice_gender_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/gender.png')).resize((16,16)))
         self.voice_gender_label = tkinter.Label(self.window, text = ' Gender', font = ('Lucida',11),
                             background = 'white', image = self.voice_gender_logo, compound = tkinter.LEFT)
         self.voice_gender_label.place(x = 50, y = 125)
@@ -252,7 +254,7 @@ class MedbotGUISettings:
         self.voice_gender_dropdown['state'] = 'readonly'
         self.voice_gender_dropdown.place(x = 225, y = 125)
 
-        self.voice_volume_logo = ImageTk.PhotoImage(Image.open('images/volume.png').resize((16,16)))
+        self.voice_volume_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/volume.png')).resize((16,16)))
         self.voice_volume_label = tkinter.Label(self.window, text = ' Volume', font = ('Lucida',11),
                             background = 'white', image = self.voice_volume_logo, compound = tkinter.LEFT)
         self.voice_volume_label.place(x = 50, y = 160)
@@ -264,7 +266,7 @@ class MedbotGUISettings:
                             command = self.set_voice_volume)
         self.voice_volume_slider.place(x = 225, y = 150)
 
-        self.voice_rate_logo = ImageTk.PhotoImage(Image.open('images/rate.png').resize((16,16)))
+        self.voice_rate_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/rate.png')).resize((16,16)))
         self.voice_rate_label = tkinter.Label(self.window, text = ' Voice Rate', font = ('Lucida',11),
                             background = 'white', image = self.voice_rate_logo, compound = tkinter.LEFT)
         self.voice_rate_label.place(x = 50, y = 200)
@@ -276,7 +278,7 @@ class MedbotGUISettings:
                             command = self.set_voice_rate)
         self.voice_rate_slider.place(x = 225, y = 190)
 
-        self.voice_command_logo = ImageTk.PhotoImage(Image.open('images/microphone.png').resize((16,16)))
+        self.voice_command_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/microphone.png')).resize((16,16)))
         self.voice_command_label = tkinter.Label(self.window, text = ' Voice Command', font = ('Lucida', 11),
                             background = 'white', image = self.voice_command_logo, compound = tkinter.LEFT)  
         self.voice_command_label.place(x = 50, y = 240)
@@ -288,7 +290,7 @@ class MedbotGUISettings:
         self.voice_command_dropdown['state'] = 'readonly'
         self.voice_command_dropdown.place(x = 225, y = 240)
 
-        self.microphone_device_logo = ImageTk.PhotoImage(Image.open('images/microphone2.png').resize((16,16)))
+        self.microphone_device_logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/microphone2.png')).resize((16,16)))
         self.microphone_device_label = tkinter.Label(self.window, text = ' Microphone Device', font = ('Lucida',11),
                             background = 'white', image = self.microphone_device_logo, compound = tkinter.LEFT)
         self.microphone_device_label.place(x = 50, y = 270)
@@ -307,7 +309,7 @@ class MedbotGUISettings:
         self.microphone_device_dropdown.bind('<<ComboboxSelected>>', self.set_microphone_index)
 
     def load_config(self):
-        with open('config.yml', 'r') as file:
+        with open(os.path.join(dirname, 'config.yml'), 'r') as file:
             config = yaml.safe_load(file)
         voice_command_enabled = config['medbot']['settings']['voice_command']
         voice_prompt_enabled = config['medbot']['settings']['voice_prompt']
@@ -392,10 +394,10 @@ class MedbotGUISettings:
         self.save_config('microphone', 'index', index)
 
     def save_config(self, parent, key, value):
-        with open('config.yml', 'r') as file:
+        with open(os.path.join(dirname, 'config.yml'), 'r') as file:
             config = yaml.safe_load(file)
         config['medbot'][parent][key] = value
-        with open('config.yml', 'w') as file:
+        with open(os.path.join(dirname, 'config.yml'), 'w') as file:
             yaml.dump(config, file)
 
 class MedbotGUIMain():
@@ -408,7 +410,7 @@ class MedbotGUIMain():
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
         self.window.title('Main Window')
         self.window.geometry('800x440')
-        logo = ImageTk.PhotoImage(Image.open('images/logo.png'))
+        logo = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/logo.png')))
         self.window.iconphoto(False, logo)
         self.window.configure(background = 'white')
 
@@ -439,17 +441,17 @@ class MedbotGUIMain():
         self.window_completed = False
         self.speaker_refreshed = False
 
-        self.transparent_icon = ImageTk.PhotoImage(Image.open('images/transparent.png').resize((16,16)))
+        self.transparent_icon = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/transparent.png')).resize((16,16)))
 
         self.finger_notification_holder = tkinter.Canvas(self.window, width = 24, height = 24)
         self.finger_notification_holder.configure(background = 'white')
-        self.finger_icon = ImageTk.PhotoImage(Image.open('images/finger.png').resize((16,16)))
+        self.finger_icon = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/finger.png')).resize((16,16)))
         self.finger_notification_holder.create_image(4, 4, image = self.finger_icon, anchor = tkinter.NW)
         self.finger_notification_holder.place(x = 695, y = 2.5)
 
         self.arm_notification_holder = tkinter.Canvas(self.window, width = 24, height = 24)
         self.arm_notification_holder.configure(background = 'white')
-        self.arm_icon = ImageTk.PhotoImage(Image.open('images/arm.png').resize((16,16)))
+        self.arm_icon = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/arm.png')).resize((16,16)))
         self.arm_notification_holder.create_image(4, 4, image = self.arm_icon, anchor = tkinter.NW)
         self.arm_notification_holder.place(x = 725, y = 2.5)
 
@@ -459,7 +461,7 @@ class MedbotGUIMain():
         self.display.place(x = 50, y = 30)
 
         self.pulse_rate_holder = tkinter.Canvas(self.window, width = 220, height = 100)
-        self.pulse_rate_icon = ImageTk.PhotoImage(Image.open('images/pulse_rate.png').resize((64,64)))
+        self.pulse_rate_icon = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/pulse_rate.png')).resize((64,64)))
         self.pulse_rate_holder.create_image(10, 18, image = self.pulse_rate_icon, anchor = tkinter.NW)
         self.pulse_rate_holder.create_text(140, 40, text = 'Pulse Rate', anchor = tkinter.CENTER,
                             font = ('Lucida', 15), justify = 'center')
@@ -469,7 +471,7 @@ class MedbotGUIMain():
         self.pulse_rate_holder.place(x = 50, y = 255)
 
         self.blood_pressure_holder = tkinter.Canvas(self.window, width = 220, height = 100)
-        self.blood_pressure_icon = ImageTk.PhotoImage(Image.open('images/blood_pressure.png').resize((64,64)))
+        self.blood_pressure_icon = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/blood_pressure.png')).resize((64,64)))
         self.blood_pressure_holder.create_image(10, 18, image = self.blood_pressure_icon, anchor = tkinter.NW)
         self.blood_pressure_holder.create_text(145, 40, text = 'Blood Pressure', anchor = tkinter.CENTER,
                             font = ('Lucida', 15), justify = 'center')
@@ -479,7 +481,7 @@ class MedbotGUIMain():
         self.blood_pressure_holder.place(x = 290, y = 255)
 
         self.blood_saturation_holder = tkinter.Canvas(self.window, width = 220, height = 100)
-        self.blood_saturation_icon = ImageTk.PhotoImage(Image.open('images/blood_saturation.png').resize((64,64)))
+        self.blood_saturation_icon = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/finger.png')).resize((64,64)))
         self.blood_saturation_holder.create_image(5, 18, image = self.blood_saturation_icon, anchor = tkinter.NW)
         self.blood_saturation_holder.create_text(140, 40, text = 'Blood Saturation', anchor = tkinter.CENTER,
                             font = ('Lucida', 15), justify = 'center')
@@ -785,7 +787,7 @@ Sp02   {blood_saturation} %         {blood_saturation_rating}
         self.medbot.speak(self.voice_command_fail_message)
         
     def load_config(self):
-        with open('config.yml', 'r') as file:
+        with open(os.path.join(dirname, 'config.yml'), 'r') as file:
             config = yaml.safe_load(file)
         self.body_check_prompt_text = config['medbot']['gui']['body_check_prompt']['text']
         self.body_check_prompt_voice = config['medbot']['gui']['body_check_prompt']['voice']
@@ -799,17 +801,17 @@ Sp02   {blood_saturation} %         {blood_saturation_rating}
         self.voice_command_fail_message = config['medbot']['gui']['printer_prompt']['on_failure_message'] 
 
 if __name__ == '__main__':
-    with open('config.yml', 'r') as file:
-        config = yaml.safe_load(file)
-    database_host = config['medbot']['database']['host']
-    database = config['medbot']['database']['database']
-    database_user = config['medbot']['database']['user']
-    database_password = config['medbot']['database']['password']
+    # with open(os.path.join(dirname, 'config.yml'), 'r') as file:
+    #     config = yaml.safe_load(file)
+    # database_host = config['medbot']['database']['host']
+    # database = config['medbot']['database']['database']
+    # database_user = config['medbot']['database']['user']
+    # database_password = config['medbot']['database']['password']
 
-    database = medical_robot.Database(database_host,database,database_user,database_password)
-    medbot = medical_robot.Medbot(database, microphone_index=1)
-    medbot.load_config('config.yml')
-    medbot.pulse_rate_from_bpm = True
-    MedbotGUI(medbot)
-    # MedbotGUIStartScreen()
+    # database = medical_robot.Database(database_host,database,database_user,database_password)
+    # medbot = medical_robot.Medbot(database, microphone_index=1)
+    # medbot.load_config(os.path.join(dirname, 'config.yml'))
+    # medbot.pulse_rate_from_bpm = True
+    # MedbotGUI(medbot)
+    MedbotGUIStartScreen()
     
