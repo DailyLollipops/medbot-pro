@@ -151,7 +151,7 @@ class MedbotGUI:
         self.medbot = medbot
         self.logged_in = False
         self.just_logged_out = False
-
+        
         self.placeholder = tkinter.Canvas(self.window, width = 380, height = 400)
         self.qrcode = ImageTk.PhotoImage(Image.open('images/qrcode.png').resize((256,260)))
         self.placeholder.create_text(190, 65, text = 'Med-bot: Pulse Rate\nand\nBlood Pressure Monitor',
@@ -427,6 +427,7 @@ class MedbotGUIMain():
         self.oximeter_thread = Thread(target = self.medbot.start_oximeter)
         self.bp_finished = False
         self.bp_thread = Thread(target = self.medbot.start_blood_pressure_monitor)
+        self.bp_logged = False
         self.voice_prompt_started = False
         self.oximeter_thread_started = False
         self.bp_thread_started = False
@@ -602,21 +603,30 @@ class MedbotGUIMain():
                     self.bp_finished = True
                 if(self.oximeter_thread_started and not self.oximeter_thread.is_alive() \
                     and self.bp_thread_started and self.bp_finished):
-                    self.log('Releasing Oximeter...')
+                    self.log(f'Got Pulse Rate: {self.medbot.get_current_pulse_rate()}')
+                    self.log(f'Got BP: {self.medbot.get_current_systolic()}/{self.medbot.get_current_diastolic()}')
+                    self.log(f'Got SP02: {self.medbot.get_current_blood_saturation()}')
+                    self.log('Releasing....')
                     self.medbot.release_oximeter()
-                    self.log('Oximeter Released')
-                    self.log('Releasing Arm Cuff...')
                     self.medbot.release_cuff()
-                    self.log('Arm Cuff Released')
                     self.operation_completed = True
                 self.speaker_refreshed = False
             else:
                 self.speaker_refreshed = True
 
-        # Check if the measuring operation threads are still alive
-        # Do some animation
-        # elif(self.oximeter_thread_started and self.oximeter_thread.is_alive() and self.bp_thread_started and self.bp_thread.is_alive() and self.operation_started):
-        #     print('OP5')
+        # Check if blood pressure is finished but oximeter is not
+        elif(self.operation_started and not self.operation_completed):
+            if(not self.bp_logged):
+                self.log(f'Got BP: {self.medbot.get_current_systolic()}/{self.medbot.get_current_diastolic()}')
+                self.log('Waiting for oximeter...')
+                self.bp_logged = True
+            if(not self.oximeter_thread.is_alive()):
+                self.log(f'Got Pulse Rate: {self.medbot.get_current_pulse_rate()}')
+                self.log(f'Got SP02: {self.medbot.get_current_blood_saturation()}')
+                self.log('Releasing...')
+                self.medbot.release_oximeter()
+                self.medbot.release_cuff()
+                self.operation_completed = True
 
         # Check if the measuring operation thread has finished
         # Does some variable resets for finalizing operation completion
@@ -677,6 +687,10 @@ class MedbotGUIMain():
                                     font = ('Lucida', 14, 'bold'), command = lambda:self.printer_response(False))
                 self.no_button.place(x = 355, y = 150)
                 self.printer_choice_displayed = True
+                self.speaker_refreshed = True
+            if(self.speaker_refreshed):
+                self.medbot.speak('Do you want to print the results?')
+                self.speaker_refreshed = False
             if(not self.printer_responded):
                 if(not self.printer_choice_thread_started):
                     self.printer_choice_thread_started = True
