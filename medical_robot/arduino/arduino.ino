@@ -212,6 +212,18 @@ void loop() {
     cuffRelease();
     current_command = -1;
   }
+
+  // EnergizeSolenoid
+  else if(current_command == 18){
+    energizeSolenoid();
+    current_command = -1;
+  }
+
+  // De-energizeSolenoid
+  else if(current_command == 18){
+    energizeSolenoid();
+    current_command = -1;
+  }  
 }
 
 void detectArm(){
@@ -428,7 +440,7 @@ void startBPM(){
   digitalWrite(bpmSolenoid, LOW);
   delay(250);
   digitalWrite(bpmSolenoid, HIGH);
-  delay(1000);
+//  delay(1000);
   sendResponse("92");
 }
 
@@ -518,4 +530,12 @@ void cuffMotorBackward(){
   delay(500);
   digitalWrite(cuffMotorIn1Pin, LOW);
   digitalWrite(cuffMotorIn2Pin, LOW);
+}
+
+void energizeSolenoid(){
+  digitalWrite(bpmSolenoid, LOW);
+}
+
+void deenergizeSolenoid(){
+  digitalWrite(bpmSolenoid, HIGH);
 }
