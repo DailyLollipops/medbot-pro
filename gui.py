@@ -153,7 +153,8 @@ class MedbotGUI:
         self.medbot = medbot
         self.logged_in = False
         self.just_logged_out = False
-        
+        self.first_time = True
+
         self.placeholder = tkinter.Canvas(self.window, width = 380, height = 400)
         self.qrcode = ImageTk.PhotoImage(Image.open(os.path.join(dirname, 'images/qrcode.png')).resize((256,260)))
         self.placeholder.create_text(190, 65, text = 'Med-bot: Pulse Rate\nand\nBlood Pressure Monitor',
@@ -503,7 +504,7 @@ class MedbotGUIMain():
             self.display.itemconfigure(self.display_text, text = 'Sanitizing...')
             if(not self.voice_prompt_started and self.speaker_refreshed):
                 self.voice_prompt_started = True
-                self.medbot.speak('Sanitizing. Please wait')
+                self.medbot.speak('Sanitizing. Place your hand in front the sanitizer')
                 self.speaker_refreshed = False
                 # voice_prompt = Thread(target=self.medbot.speak, args=(self.body_check_prompt_voice,))
                 # voice_prompt.start()
@@ -598,7 +599,6 @@ class MedbotGUIMain():
                     self.oximeter_thread.start()
                     self.oximeter_thread_started = True
                     self.log('Oximeter Started')
-                if(not self.bp_thread_started):
                     self.bp_thread_started = True
                     self.log('Blood Pressure Monitor Started')
                     self.medbot.start_blood_pressure_monitor(retry_on_fail=True)
