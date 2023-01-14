@@ -337,6 +337,12 @@ class Medbot:
                 return False
 
     def lock_cuff(self):
+        '''
+            Send command to the Arduino to execute
+            cuffLock function. \n
+            Raises an exception if cuff is already
+            locked
+        '''
         if(not self.cuff_locked):
             self.send_command(16)
             self.__wait_operation_complete()
@@ -345,6 +351,12 @@ class Medbot:
             raise Exception('Cuff is locked')
 
     def lock_oximeter(self):
+        '''
+            Send command to the Arduino to execute
+            oximeterLock function. \n
+            Raises an exception if oximeter is already
+            locked
+        '''
         if(not self. oximeter_locked):
             self.send_command(14)
             self.__wait_operation_complete()
@@ -353,6 +365,12 @@ class Medbot:
             raise Exception('Oximeter is locked')
 
     def release_cuff(self):
+        '''
+            Send command to the Arduino to execute
+            cuffReleased function. \n
+            Raises an exception if cuff is already
+            released
+        '''
         if(self.cuff_locked):
             self.send_command(17)
             self.__wait_operation_complete()
@@ -361,6 +379,12 @@ class Medbot:
             raise Exception('Cuff is unlocked')
 
     def release_oximeter(self):
+        '''
+            Send command to the Arduino to execute
+            oximeterLock function. \n
+            Raises an exception if cuff is already
+            released
+        '''
         if(self.oximeter_locked):
             self.send_command(15)
             self.__wait_operation_complete()
