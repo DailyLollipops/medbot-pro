@@ -64,7 +64,7 @@ class Medbot:
             self.arduino = Serial('/dev/ttyACM0', 9600, timeout = 1)
         except:
             self.arduino = Serial('/dev/ttyACM1', 9600, timeout = 1)
-        self.availabe_commands = [i for i in range(18)]
+        self.availabe_commands = [i for i in range(20)]
         self.arduino.flush()
         self.send_command(9)
         self.__wait_operation_complete()
@@ -81,6 +81,8 @@ class Medbot:
         self.body_check_started = False
         self.body_check_in_progress = False
         self.body_check_completed = False
+        self.oximeter_started = False
+        self.blood_pressure_monitor_started = False
         self.listening = False
         self.voice_prompt_enabled = True
         self.voice_command_enabled = True
@@ -458,33 +460,39 @@ class Medbot:
             Returns and cache pulse rate and blood saturation on default. If `pulse_rate_from_bpm`
             is set to `True` returns only blood saturation
         '''
-        pulse_rate_samples = []
-        blood_saturation_samples = []
-        sample_count = 1
-        if(self.oximeter_samples == 1):
-            while(len(pulse_rate_samples) == 0):
-                red, ir = self.oximeter.read_sequential()
-                pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = self.utility.calc_hr_and_spo2(ir[:100], red[:100])
-                if(pulse_rate_valid and blood_saturation_valid and blood_saturation >= 90):
-                    pulse_rate_samples.append(pulse_rate)
-                    blood_saturation_samples.append(blood_saturation)
-                    print(str(pulse_rate) + str(blood_saturation))
+        if(not self.oximeter_started):
+            self.oximeter_started = True
+            pulse_rate_samples = []
+            blood_saturation_samples = []
+            sample_count = 1
+            if(self.oximeter_samples == 1):
+                while(len(pulse_rate_samples) == 0):
+                    red, ir = self.oximeter.read_sequential()
+                    pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = self.utility.calc_hr_and_spo2(ir[:100], red[:100])
+                    if(pulse_rate_valid and blood_saturation_valid and blood_saturation >= 90):
+                        pulse_rate_samples.append(pulse_rate)
+                        blood_saturation_samples.append(blood_saturation)
+                        print(str(pulse_rate) + str(blood_saturation))
+            else:
+                while(sample_count < self.oximeter_samples):
+                    red, ir = self.oximeter.read_sequential()
+                    pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = self.utility.calc_hr_and_spo2(ir[:100], red[:100])
+                    if(pulse_rate_valid and blood_saturation_valid and sample_count <= 10):
+                        pulse_rate_samples.append(pulse_rate)
+                        blood_saturation_samples.append(blood_saturation)
+                        sample_count = sample_count + 1
+            average_blood_saturation = round(sum(blood_saturation_samples)/len(blood_saturation_samples))
+            self.current_reading['blood_saturation'] = average_blood_saturation
+            if(not self.pulse_rate_from_bpm):
+                average_pulse_rate = round(sum(pulse_rate_samples)/len(pulse_rate_samples))
+                self.current_reading['pulse_rate'] = average_pulse_rate
+                self.oximeter_started = False
+                return average_pulse_rate, average_blood_saturation
+            else:
+                self.oximeter_started = False
+                return average_blood_saturation
         else:
-            while(sample_count < self.oximeter_samples):
-                red, ir = self.oximeter.read_sequential()
-                pulse_rate, pulse_rate_valid, blood_saturation, blood_saturation_valid = self.utility.calc_hr_and_spo2(ir[:100], red[:100])
-                if(pulse_rate_valid and blood_saturation_valid and sample_count <= 10):
-                    pulse_rate_samples.append(pulse_rate)
-                    blood_saturation_samples.append(blood_saturation)
-                    sample_count = sample_count + 1
-        average_blood_saturation = round(sum(blood_saturation_samples)/len(blood_saturation_samples))
-        self.current_reading['blood_saturation'] = average_blood_saturation
-        if(not self.pulse_rate_from_bpm):
-            average_pulse_rate = round(sum(pulse_rate_samples)/len(pulse_rate_samples))
-            self.current_reading['pulse_rate'] = average_pulse_rate
-            return average_pulse_rate, average_blood_saturation
-        else:
-            return average_blood_saturation
+            raise Exception('Oximeter already started')
 
     def start_blood_pressure_monitor(self, retry_on_fail: bool = False):
         '''
@@ -498,33 +506,38 @@ class Medbot:
             `pulse_rate_from_bpm` property to true by direct or by calling
             `set_pulse_rate_from_bpm(True)`.
         '''
-        print('starting')
-        self.send_command(4)
-        self.__wait_operation_complete()
-        time.sleep(self.start_blood_pressure_monitor_delay)
-        if(retry_on_fail):
-            while True:
-                try:
-                    blood_pressure_monitor = Microlife_BTLE()
-                    blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)                          
-                    latest_measurement = blood_pressure_monitor.get_measurements()[-1]
-                    break
-                except:
-                    print('Retrying')
-        else:            
-            blood_pressure_monitor = Microlife_BTLE()
-            blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)                          
-            latest_measurement = blood_pressure_monitor.get_measurements()[-1]
-        systolic = latest_measurement[1]
-        diastolic = latest_measurement[2]
-        self.current_reading['systolic'] = systolic
-        self.current_reading['diastolic'] = diastolic
-        if(self.pulse_rate_from_bpm):
-            pulse_rate = latest_measurement[3]
-            self.current_reading['pulse_rate'] = pulse_rate
-            return systolic, diastolic, pulse_rate
+        if(not self.blood_pressure_monitor_started):
+            self.blood_pressure_monitor_started = True
+            self.send_command(4)
+            self.__wait_operation_complete()
+            time.sleep(self.start_blood_pressure_monitor_delay)
+            if(retry_on_fail):
+                while True:
+                    try:
+                        blood_pressure_monitor = Microlife_BTLE()
+                        blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)                          
+                        latest_measurement = blood_pressure_monitor.get_measurements()[-1]
+                        break
+                    except:
+                        print('Retrying')
+            else:            
+                blood_pressure_monitor = Microlife_BTLE()
+                blood_pressure_monitor.bluetooth_communication(blood_pressure_monitor.patient_id_callback)                          
+                latest_measurement = blood_pressure_monitor.get_measurements()[-1]
+            systolic = latest_measurement[1]
+            diastolic = latest_measurement[2]
+            self.current_reading['systolic'] = systolic
+            self.current_reading['diastolic'] = diastolic
+            if(self.pulse_rate_from_bpm):
+                pulse_rate = latest_measurement[3]
+                self.current_reading['pulse_rate'] = pulse_rate
+                self.blood_pressure_monitor_started = False
+                return systolic, diastolic, pulse_rate
+            else:
+                self.blood_pressure_monitor_started = False
+                return systolic, diastolic
         else:
-            return systolic, diastolic
+            raise Exception('Blood Pressure Monitor already started')
     
     def interpret_pulse_rate(self, age, pulse_rate):
         '''
